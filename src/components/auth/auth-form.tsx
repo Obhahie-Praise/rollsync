@@ -31,8 +31,9 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
         provider: "google",
         callbackURL: "/onboarding",
       });
-    } catch (err: any) {
-      setError(err?.message || "An error occurred");
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error?.message || "An error occurred");
       setLoading(false);
     }
   };
@@ -44,7 +45,7 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
 
     try {
       if (mode === "sign-up") {
-        const { data, error } = await authClient.signUp.email({
+        const { error } = await authClient.signUp.email({
           email,
           password,
           name: `${firstName} ${lastName}`.trim(),
@@ -52,15 +53,16 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
         if (error) throw error;
         router.push("/onboarding");
       } else {
-        const { data, error } = await authClient.signIn.email({
+        const { error } = await authClient.signIn.email({
           email,
           password,
         });
         if (error) throw error;
         router.push("/onboarding");
       }
-    } catch (err: any) {
-      setError(err?.message || err?.error?.message || "An error occurred");
+    } catch (err: unknown) {
+      const error = err as any;
+      setError(error?.message || error?.error?.message || "An error occurred");
       setLoading(false);
     }
   };
@@ -163,7 +165,7 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
           {mode === "sign-up" ? (
             <>Already have an account? <span className="font-medium underline hover:no-underline">Sign in</span></>
           ) : (
-            <>Don't have an account? <span className="font-medium underline hover:no-underline">Sign up</span></>
+            <>Don&apos;t have an account? <span className="font-medium underline hover:no-underline">Sign up</span></>
           )}
         </button>
       </div>

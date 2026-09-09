@@ -18,6 +18,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "sign-up" }: AuthModa
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line
       setMode(initialMode);
       document.body.style.overflow = "hidden";
     } else {

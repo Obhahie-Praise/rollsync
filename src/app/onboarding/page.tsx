@@ -11,7 +11,7 @@ export default function OnboardingPage() {
         </h2>
         
         <p className="text-gray-500 mb-10 text-[15px]">
-          Let's get your workspace set up.
+          Let&apos;s get your workspace set up.
         </p>
         
         <button className="w-full bg-[#0d34db] hover:bg-[#0b2bb5] text-white rounded-full py-[14px] px-6 font-medium text-[16px] transition-colors">
