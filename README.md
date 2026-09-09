@@ -58,7 +58,7 @@ Roll SYNC is a unified attendance infrastructure platform.
 
 The simplest way to think about it is:
 
-> **A flexible attendance engine that can be accessed through a web application, mobile application, API, or SDK.**
+> ****A flexible attendance engine that can be accessed through a web application, mobile application, API, or SDK.****
 
 Traditional attendance systems usually force an organization into one workflow:
 
@@ -94,30 +94,44 @@ Regardless of how attendance is collected, the result should eventually become a
 
 Roll SYNC is built around a simple principle:
 
-> **Attendance should be an action, not a process.**
+> ****Attendance should be an action, not a process.****
 
 Someone arriving at an event should not have to spend several minutes filling out a form just to say they are present.
 
 The ideal interaction is:
 
 ```text
+
 Arrive
+
   ↓
+
 Identify / Scan / Confirm
+
   ↓
+
 Attendance Recorded
+
 ```
 
 For users with the Roll SYNC mobile application, the interaction can become even more resilient:
 
 ```text
+
 User Action
+
     ↓
+
 Local Recording
+
     ↓
+
 Immediate Feedback
+
     ↓
+
 Synchronization Later
+
 ```
 
 This allows the system to continue functioning in environments where network connectivity is poor, unreliable, or temporarily unavailable.
@@ -129,16 +143,27 @@ This allows the system to continue functioning in environments where network con
 Roll SYNC has three primary interfaces:
 
 ```text
+
                          ROLL SYNC
+
                              │
+
               ┌──────────────┼──────────────┐
+
               │              │              │
+
               ▼              ▼              ▼
+
             WEB           MOBILE           API
+
               │              │              │
+
               └──────────────┼──────────────┘
+
                              │
+
                        BACKEND CORE
+
 ```
 
 These are not three independent products.
@@ -150,7 +175,9 @@ They are three clients/interfaces built around the same backend infrastructure.
 Located at:
 
 ```text
+
 apps/web
+
 ```
 
 The web application is primarily intended for organizers, administrators, organizations, and operators.
@@ -176,13 +203,21 @@ The web application does not communicate directly with the database.
 Instead:
 
 ```text
+
 Web
+
  ↓
+
 Roll SYNC API
+
  ↓
+
 Backend Services
+
  ↓
+
 Database / External Services
+
 ```
 
 ---
@@ -192,7 +227,9 @@ Database / External Services
 Located at:
 
 ```text
+
 apps/mobile
+
 ```
 
 The mobile application is intended primarily for attendees and mobile organizers.
@@ -222,7 +259,9 @@ Instead, it should be capable of safely recording user intent locally and synchr
 Located at:
 
 ```text
+
 apps/api
+
 ```
 
 The API is the central backend application.
@@ -262,56 +301,103 @@ The backend is the authoritative source of truth for server-side state.
 At a high level:
 
 ```text
+
                     ┌───────────────┐
+
                     │  Web Client   │
+
                     └───────┬───────┘
+
                             │
+
                     ┌───────▼───────┐
+
                     │               │
+
                     │  Roll SYNC    │
+
                     │      API      │
+
                     │               │
+
                     └───┬───────┬───┘
+
                         │       │
+
                ┌────────┘       └─────────┐
+
                ▼                          ▼
+
         ┌─────────────┐            ┌─────────────┐
+
         │ PostgreSQL  │            │    Redis    │
+
         │    Neon     │            │   BullMQ    │
+
         └─────────────┘            └──────┬──────┘
+
                                          │
+
                                    ┌─────▼─────┐
+
                                    │  Worker   │
+
                                    └───────────┘
+
 ```
 
 Mobile follows the same server architecture but adds a local persistence and synchronization layer:
 
 ```text
+
                     MOBILE
+
                        │
+
                   User Action
+
                        │
+
                ┌───────▼────────┐
+
                │  Local Storage │
+
                └───────┬────────┘
+
                        │
+
                  Pending Intent
+
                        │
+
                ┌───────▼────────┐
+
                │   Sync Engine  │
+
                └───────┬────────┘
+
                        │
+
                 Network Available
+
                        │
+
                        ▼
+
                  Roll SYNC API
+
                        │
+
                        ▼
+
                 Server Validation
+
                        │
+
                        ▼
+
                   PostgreSQL
+
 ```
 
 ---
@@ -321,51 +407,97 @@ Mobile follows the same server architecture but adds a local persistence and syn
 Roll SYNC is organized as a monorepo using pnpm workspaces and Turborepo.
 
 ```text
+
 roll-sync/
+
 │
+
 ├── apps/
+
 │   ├── web/
+
 │   │   └── Next.js web application
+
 │   │
+
 │   ├── mobile/
+
 │   │   └── Expo / React Native mobile application
+
 │   │
+
 │   ├── api/
+
 │   │   └── NestJS backend API
+
 │   │
+
 │   └── worker/
+
 │       └── Background job processor
+
 │
+
 ├── packages/
+
 │   ├── database/
+
 │   │   └── Prisma database layer
+
 │   │
+
 │   ├── sdk/
+
 │   │   └── Public Roll SYNC SDK
+
 │   │
+
 │   ├── types/
+
 │   │   └── Shared TypeScript types
+
 │   │
+
 │   ├── validation/
+
 │   │   └── Shared data validation
+
 │   │
+
 │   ├── eslint-config/
+
 │   │   └── Shared ESLint configuration
+
 │   │
+
 │   └── typescript-config/
+
 │       └── Shared TypeScript configuration
+
 │
+
 ├── docs/
+
 │   └── Project and architecture documentation
+
 │
+
 ├── .github/
+
 │   └── GitHub workflows and repository configuration
+
 │
+
 ├── package.json
+
 ├── pnpm-workspace.yaml
+
 ├── pnpm-lock.yaml
+
 ├── turbo.json
+
 └── README.md
+
 ```
 
 The exact contents of `packages/` may evolve as the product grows.
@@ -373,13 +505,17 @@ The exact contents of `packages/` may evolve as the product grows.
 The important architectural distinction is:
 
 ```text
+
 apps/
+
 ```
 
 contains executable applications and services, while:
 
 ```text
+
 packages/
+
 ```
 
 contains reusable libraries shared by those applications.
@@ -391,32 +527,59 @@ contains reusable libraries shared by those applications.
 Roll SYNC follows a client-server architecture with a centralized backend and asynchronous processing infrastructure.
 
 ```text
+
 ┌─────────────────────────────────────────────────────┐
+
 │                     CLIENTS                         │
+
 │                                                     │
+
 │    Web              Mobile             Third Party  │
+
 │     │                  │                    │        │
+
 └─────┼──────────────────┼────────────────────┼────────┘
+
       │                  │                    │
+
       └──────────────────┼────────────────────┘
+
                          │
+
                          ▼
+
                 ┌───────────────────┐
+
                 │   Roll SYNC API   │
+
                 │      NestJS       │
+
                 └─────────┬─────────┘
+
                           │
+
              ┌────────────┼────────────┐
+
              │            │            │
+
              ▼            ▼            ▼
+
        PostgreSQL       Redis      External
+
          / Neon        / BullMQ    Services
+
              │            │
+
              │            ▼
+
              │          Worker
+
              │
+
              ▼
+
        Persistent State
+
 ```
 
 The API handles synchronous operations.
@@ -442,23 +605,37 @@ One of the most important rules in the project is maintaining a strict boundary 
 Instead:
 
 ```text
+
 Web ─────────┐
+
              │
+
 Mobile ──────┼──────→ API
+
              │
+
 SDK ─────────┘
+
 ```
 
 The API then communicates with:
 
 ```text
+
 API
+
 ├── Database
+
 ├── Redis
+
 ├── File Storage
+
 ├── Authentication
+
 ├── Billing
+
 └── External Integrations
+
 ```
 
 This keeps sensitive infrastructure behind a controlled server boundary.
@@ -474,30 +651,44 @@ The system separates several concepts that are often mixed together in simple at
 At a high level:
 
 ```text
+
 Organization
+
      ↓
+
 Event
+
      ↓
+
 Attendance Session
+
      ↓
+
 Attendance Method
+
      ↓
+
 Participant
+
      ↓
+
 Attendance Intent
+
      ↓
+
 Attendance Record
+
 ```
 
-An **event** represents the overall activity.
+An ****event**** represents the overall activity.
 
-An **attendance session** represents the period during which attendance can be recorded.
+An ****attendance session**** represents the period during which attendance can be recorded.
 
-An **attendance method** defines how someone can indicate their presence.
+An ****attendance method**** defines how someone can indicate their presence.
 
-An **attendance intent** represents a client's attempt to record attendance.
+An ****attendance intent**** represents a client's attempt to record attendance.
 
-An **attendance record** represents server-confirmed attendance.
+An ****attendance record**** represents server-confirmed attendance.
 
 ---
 
@@ -508,31 +699,53 @@ The system is designed to support multiple methods without creating separate att
 Examples include:
 
 ```text
+
 QR Code
+
 Roll Call
+
 ID Scan
+
 Mobile Check-in
+
 Organizer Check-in
+
 API
+
 Hardware
+
 ```
 
 All methods should eventually converge into the same attendance domain:
 
 ```text
+
 QR Scan ────────┐
+
                 │
+
 Roll Call ──────┤
+
                 │
+
 ID Scan ────────┼──→ Attendance Intent
+
                 │
+
 Mobile ────────┤
+
                 │
+
 API ────────────┘
+
                        ↓
+
                 Server Validation
+
                        ↓
+
                 Attendance Record
+
 ```
 
 This allows new attendance methods to be added without redesigning the entire attendance system.
@@ -547,50 +760,82 @@ The mobile application should be capable of recording attendance intent without 
 
 The fundamental model is:
 
-> **Local availability first. Server authority always.**
+> ****Local availability first. Server authority always.****
 
 When online:
 
 ```text
+
 User
+
  ↓
+
 Mobile App
+
  ↓
+
 API
+
  ↓
+
 Server Validation
+
  ↓
+
 Database
+
 ```
 
 When offline:
 
 ```text
+
 User
+
  ↓
+
 Mobile App
+
  ↓
+
 Local Database
+
  ↓
+
 Pending Sync Operation
+
 ```
 
 When connectivity returns:
 
 ```text
+
 Pending Operation
+
  ↓
+
 Sync Engine
+
  ↓
+
 API
+
  ↓
+
 Server Validation
+
  ↓
+
 Database
+
  ↓
+
 Sync Confirmation
+
  ↓
+
 Local State Updated
+
 ```
 
 The client therefore does not need to wait for the network before responding to the user's action.
@@ -608,13 +853,21 @@ Offline synchronization introduces the possibility of retries.
 For example:
 
 ```text
+
 Client Sends Attendance
+
         ↓
+
 Network Timeout
+
         ↓
+
 Client Does Not Know Whether Server Received It
+
         ↓
+
 Client Retries
+
 ```
 
 Without idempotency, this could create duplicate attendance records.
@@ -646,15 +899,25 @@ Persistent state remains stored in PostgreSQL.
 A simplified flow is:
 
 ```text
+
 Attendance Created
+
        ↓
+
 Database
+
        ↓
+
 Realtime Event
+
        ↓
+
 Connected Clients
+
        ↓
+
 UI Updates
+
 ```
 
 If a realtime connection disappears, clients should be able to recover the current state through normal API requests.
@@ -670,17 +933,29 @@ Long-running, expensive, retryable, or asynchronous operations are handled by th
 The architecture is:
 
 ```text
+
 API
+
  ↓
+
 Create Job
+
  ↓
+
 Redis
+
  ↓
+
 BullMQ
+
  ↓
+
 Worker
+
  ↓
+
 Process Job
+
 ```
 
 Potential background jobs include:
@@ -709,16 +984,27 @@ Third-party organizations should eventually be able to build Roll SYNC functiona
 For this reason, the public API and SDK are first-class components.
 
 ```text
+
 Third-Party Application
+
         │
+
         ▼
+
    @rollsync/sdk
+
         │
+
         ▼
+
    Roll SYNC API
+
         │
+
         ▼
+
  Roll SYNC Backend
+
 ```
 
 The SDK should make common operations easier for developers.
@@ -726,18 +1012,27 @@ The SDK should make common operations easier for developers.
 Conceptually, usage may look like:
 
 ```ts
+
 const rollsync = new RollSync({
+
   apiKey: process.env.ROLLSYNC_API_KEY,
+
 });
 
 const event = await rollsync.events.create({
+
   name: "Annual Conference",
+
 });
 
 const attendance = await rollsync.attendance.record({
+
   eventId: event.id,
+
   participantId: participant.id,
+
 });
+
 ```
 
 The actual SDK API will be defined from the backend API contract rather than invented independently.
@@ -793,13 +1088,21 @@ The database is hosted using Neon.
 The application accesses PostgreSQL through Prisma.
 
 ```text
+
 API
+
  ↓
+
 @rollsync/database
+
  ↓
+
 Prisma
+
  ↓
+
 Neon PostgreSQL
+
 ```
 
 The worker may also use the same database package.
@@ -815,22 +1118,33 @@ Prisma is a server-side concern.
 It lives inside the database package and is consumed by trusted backend applications.
 
 ```text
+
 packages/database/
+
 ├── prisma/
+
 │   └── schema.prisma
+
 └── src/
+
     └── client.ts
+
 ```
 
 The intended dependency boundary is:
 
 ```text
+
 Web       → API
+
 Mobile    → API
+
 SDK       → API
 
 API       → Database package
+
 Worker    → Database package
+
 ```
 
 Prisma must not be bundled into Web or Mobile applications.
@@ -846,13 +1160,21 @@ Files should not be stored directly inside PostgreSQL.
 Instead:
 
 ```text
+
 File
+
  ↓
+
 UploadThing
+
  ↓
+
 File URL / Identifier
+
  ↓
+
 Database Metadata
+
 ```
 
 The database stores information about the file while the actual file contents remain in file storage.
@@ -868,17 +1190,29 @@ Polar is used for billing and subscription management.
 The billing architecture keeps payment logic behind the backend.
 
 ```text
+
 User / Organization
+
        ↓
+
 Web
+
        ↓
+
 API
+
        ↓
+
 Polar
+
        ↓
+
 Subscription State
+
        ↓
+
 Roll SYNC Database
+
 ```
 
 The product is expected to support multiple pricing tiers and potentially usage-based API/SDK pricing.
@@ -900,27 +1234,49 @@ Pricing is expected to evolve through product validation.
 # Technology Stack
 
 | Area                | Technology             |
+
 | ------------------- | ---------------------- |
+
 | Web                 | Next.js                |
+
 | Mobile              | Expo / React Native    |
+
 | Backend             | NestJS                 |
+
 | Background Worker   | NestJS                 |
+
 | Language            | TypeScript             |
+
 | Package Manager     | pnpm                   |
+
 | Monorepo            | Turborepo              |
+
 | Database            | PostgreSQL             |
+
 | Database Hosting    | Neon                   |
+
 | ORM                 | Prisma                 |
+
 | Queue               | BullMQ                 |
+
 | Queue Storage       | Redis                  |
+
 | File Storage        | UploadThing            |
+
 | Authentication      | Better Auth            |
+
 | Billing             | Polar                  |
+
 | Web Hosting         | Vercel                 |
+
 | Backend Hosting     | Deplexo                |
+
 | Mobile Build System | Expo / EAS             |
+
 | Validation          | Zod                    |
+
 | API                 | REST-oriented HTTP API |
+
 | Version Control     | Git / GitHub           |
 
 Individual technology choices may change as the product evolves.
@@ -936,61 +1292,81 @@ Roll SYNC uses pnpm for package management.
 ## Install Dependencies
 
 ```bash
+
 pnpm install
+
 ```
 
 ## Run the Development Environment
 
 ```bash
+
 pnpm dev
+
 ```
 
 ## Run the Web Application
 
 ```bash
+
 pnpm --filter web dev
+
 ```
 
 ## Run the Mobile Application
 
 ```bash
+
 pnpm --filter mobile start
+
 ```
 
 ## Run the API
 
 ```bash
+
 pnpm --filter api start:dev
+
 ```
 
 ## Run the Worker
 
 ```bash
+
 pnpm --filter worker start:dev
+
 ```
 
 ## Build the Project
 
 ```bash
+
 pnpm build
+
 ```
 
 ## Run Type Checking
 
 ```bash
+
 pnpm typecheck
+
 ```
 
 ## Run Linting
 
 ```bash
+
 pnpm lint
+
 ```
 
 ## Run Tests
 
 ```bash
+
 pnpm test
+
 ```
 
 ---
@@ -1004,19 +1380,25 @@ Local environment files should be based on the relevant `.env.example` files.
 Expected server-side configuration includes values such as:
 
 ```env
+
 DATABASE_URL=
+
 REDIS_URL=
 
 BETTER_AUTH_SECRET=
+
 BETTER_AUTH_URL=
 
 GOOGLE_CLIENT_ID=
+
 GOOGLE_CLIENT_SECRET=
 
 UPLOADTHING_TOKEN=
 
 POLAR_ACCESS_TOKEN=
+
 POLAR_WEBHOOK_SECRET=
+
 ```
 
 The exact environment variables will be documented as their respective services are implemented.
@@ -1071,15 +1453,25 @@ Used to verify complete user flows.
 For example:
 
 ```text
+
 Create Event
+
  ↓
+
 Create Attendance Session
+
  ↓
+
 Generate Attendance Method
+
  ↓
+
 Submit Attendance
+
  ↓
+
 Verify Attendance
+
 ```
 
 Offline flows should also have dedicated testing.
@@ -1093,45 +1485,69 @@ Roll SYNC consists of multiple deployable services.
 ## Web
 
 ```text
+
 GitHub
+
  ↓
+
 Vercel
+
  ↓
+
 apps/web
+
 ```
 
 ## API
 
 ```text
+
 GitHub
+
  ↓
+
 Deplexo
+
  ↓
+
 apps/api
+
 ```
 
 ## Worker
 
 ```text
+
 GitHub
+
  ↓
+
 Deplexo
+
  ↓
+
 apps/worker
+
 ```
 
 ## Database
 
 ```text
+
 Neon PostgreSQL
+
 ```
 
 ## Queue
 
 ```text
+
 Redis
+
  ↓
+
 BullMQ
+
 ```
 
 The Web, API, and Worker are separate runtime concerns even though they live inside the same monorepo.
@@ -1172,11 +1588,11 @@ All externally supplied data should be validated before entering domain logic.
 
 Authentication answers:
 
-> **Who are you?**
+> ****Who are you?****
 
 Authorization answers:
 
-> **Are you allowed to perform this action?**
+> ****Are you allowed to perform this action?****
 
 Both are required.
 
@@ -1197,12 +1613,19 @@ Features should be designed around real domain entities rather than UI screens.
 For example:
 
 ```text
+
 Event
+
 Attendance Session
+
 Participant
+
 Attendance Record
+
 Organization
+
 Integration
+
 ```
 
 The UI should represent these concepts rather than define them.
@@ -1247,19 +1670,33 @@ Features should be implemented incrementally.
 A typical feature should move through:
 
 ```text
+
 Domain Decision
+
       ↓
+
 Data Model
+
       ↓
+
 API Contract
+
       ↓
+
 Backend Implementation
+
       ↓
+
 Client Implementation
+
       ↓
+
 Tests
+
       ↓
+
 Documentation
+
 ```
 
 ---
@@ -1271,28 +1708,51 @@ The `docs/` directory contains detailed technical and product documentation.
 The documentation is organized into four major areas:
 
 ```text
+
 docs/
+
 │
+
 ├── architecture/
+
 │   ├── architecture.md
+
 │   ├── data-model.md
+
 │   ├── offline-sync.md
+
 │   └── realtime.md
+
 │
+
 ├── product/
+
 │   ├── product.md
+
 │   ├── attendance.md
+
 │   └── pricing.md
+
 │
+
 ├── engineering/
+
 │   ├── development.md
+
 │   ├── contributing.md
+
 │   └── decisions.md
+
 │
+
 └── api/
+
     ├── README.md
-    ├── overview.md
+
+    ├── overview\.md
+
     └── authentication.md
+
 ```
 
 Documentation should evolve alongside the implementation.
@@ -1328,37 +1788,65 @@ The MVP should prove that Roll SYNC can provide a complete attendance workflow f
 The minimum complete flow is expected to resemble:
 
 ```text
+
 Organizer
+
     ↓
+
 Creates Event
+
     ↓
+
 Creates Attendance Session
+
     ↓
+
 Chooses Attendance Method
+
     ↓
+
 Participant Arrives
+
     ↓
+
 Participant Checks In
+
     ↓
+
 Attendance Recorded
+
     ↓
+
 Organizer Sees Attendance
+
 ```
 
 The mobile application should additionally demonstrate:
 
 ```text
+
 Participant
+
     ↓
+
 Checks In While Offline
+
     ↓
+
 Attendance Intent Stored Locally
+
     ↓
+
 Connectivity Returns
+
     ↓
+
 Intent Synchronizes
+
     ↓
+
 Server Confirms Attendance
+
 ```
 
 The API/SDK should demonstrate that an external application can interact with the same attendance infrastructure without requiring direct access to Roll SYNC's internal implementation.
@@ -1369,7 +1857,7 @@ The API/SDK should demonstrate that an external application can interact with th
 
 Roll SYNC is not intended to remain a simple attendance application.
 
-The long-term vision is to become an **attendance infrastructure layer**.
+The long-term vision is to become an ****attendance infrastructure layer****.
 
 Instead of asking:
 
@@ -1402,6 +1890,4 @@ License information will be added as the project's distribution strategy is fina
 
 # Roll SYNC
 
-**Fast attendance. Reliable infrastructure. Built for everywhere.**
-#   r o l l s y n c  
- 
+****Fast attendance. Reliable infrastructure. Built for everywhere.****
