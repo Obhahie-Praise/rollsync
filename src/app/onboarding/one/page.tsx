@@ -120,7 +120,7 @@ export default function OnboardingOnePage() {
                     "p-[32px] rounded-[30px] text-left transition-all duration-150 outline-none",
                     "focus-visible:ring-2 focus-visible:ring-blue/60",
                     isSelected
-                      ? "bg-blue text-white shadow-md scale-[1.02]"
+                      ? "bg-[#43A5F5] text-white shadow-md scale-[1.02]"
                       : "bg-accent hover:bg-accent/80 active:scale-[0.98]",
                   ].join(" ")}
                 >

@@ -2,13 +2,17 @@ import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import Header from "@/components/dashboard/Header";
 
 interface SlugLayoutProps {
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
 }
 
-export default async function SlugLayout({ children, params }: SlugLayoutProps) {
+export default async function SlugLayout({
+  children,
+  params,
+}: SlugLayoutProps) {
   const { slug } = await params;
 
   // 1. Auth check — unauthenticated users go to landing
@@ -43,5 +47,10 @@ export default async function SlugLayout({ children, params }: SlugLayoutProps) 
     redirect("/onboarding");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <Header />
+      {children}
+    </>
+  );
 }
