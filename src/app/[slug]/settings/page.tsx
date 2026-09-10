@@ -1,8 +1,10 @@
-export default function SettingsPage() {
-  return (
-    <div className="p-10">
-      <h2 className="text-[40px] font-medium">Settings</h2>
-      <p className="text-text-accent mt-2 text-[18px]">Settings coming soon.</p>
-    </div>
-  );
+import { redirect } from "next/navigation";
+
+interface PageProps {
+  params: Promise<{ slug: string }>;
+}
+
+export default async function SettingsPage({ params }: PageProps) {
+  const { slug } = await params;
+  redirect(`/${slug}/settings/profile`);
 }

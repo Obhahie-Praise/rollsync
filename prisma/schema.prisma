@@ -25,6 +25,8 @@ model User {
 
   memberships        Membership[]
   onboardingProgress OnboardingProgress?
+  notificationPrefs  NotificationPreferences?
+  apiKeysCreated     ApiKey[]
 
   @@unique([email])
   @@map("user")
@@ -105,10 +107,13 @@ model Organization {
   attendanceMethods String?
   // Optional logo URL from UploadThing
   logoUrl     String?
+  // Polar customer ID — set when the org first interacts with billing
+  polarCustomerId String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   memberships Membership[]
+  apiKeys     ApiKey[]
 
   @@map("organization")
 }
@@ -128,6 +133,64 @@ model Membership {
   @@index([userId])
   @@index([organizationId])
   @@map("membership")
+}
+
+// ─── Notification preferences ────────────────────────────────────────────────
+// Per-user email/in-app notification opt-ins.
+// All columns default to true (opted-in) so new users get sensible defaults.
+
+model NotificationPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Email notifications
+  emailAttendanceSummary  Boolean @default(true)
+  emailOrgInvitations     Boolean @default(true)
+  emailSecurityAlerts     Boolean @default(true)
+  emailAccountUpdates     Boolean @default(true)
+  emailProductUpdates     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+// ─── API keys ─────────────────────────────────────────────────────────────────
+// Per-organization API keys for third-party integrations.
+// The raw secret is NEVER stored. Only the SHA-256 hash and a short display prefix.
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
+model ApiKey {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  // Short prefix shown in the UI (e.g. "rs_live_ab12")
+  prefix         String
+  // SHA-256 hash of the full secret – never returned to clients
+  secretHash     String
+  status         ApiKeyStatus @default(ACTIVE)
+  // Optional expiry — null means never expires
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // The user who created this key (for audit trail)
+  createdById String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@index([secretHash])
+  @@map("api_key")
 }
 
 // ─── Onboarding progress ──────────────────────────────────────────────────────

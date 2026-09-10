@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.3",
+    "@polar-sh/sdk": "0.49.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@uploadthing/react": "^7.3.3",

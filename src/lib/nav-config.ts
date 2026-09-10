@@ -97,9 +97,23 @@ export const bottomLinks = [
   },
 ];
 
+// ─── Settings sub-route labels ─────────────────────────────────────────────────
+
+const settingsSegmentLabels: Record<string, string> = {
+  profile: "Profile",
+  organization: "Organization",
+  attendance: "Attendance",
+  notifications: "Notifications",
+  security: "Security",
+  developers: "Developers",
+  billing: "Billing",
+  help: "Help & support",
+};
+
 /**
  * Given a pathname, return the human-readable breadcrumb label.
  * e.g. "/acme-school/attendance/session" → "Attendance / Session"
+ * e.g. "/acme-school/settings/profile"  → "Settings / Profile"
  */
 export function getBreadcrumb(pathname: string): string {
   const segments = pathname.split("/").filter(Boolean);
@@ -112,6 +126,11 @@ export function getBreadcrumb(pathname: string): string {
   if (rest[0] === "attendance" && rest[1]) {
     const child = rest[1].charAt(0).toUpperCase() + rest[1].slice(1);
     return `Attendance / ${child}`;
+  }
+
+  if (rest[0] === "settings" && rest[1]) {
+    const sub = settingsSegmentLabels[rest[1]] ?? (rest[1].charAt(0).toUpperCase() + rest[1].slice(1));
+    return `Settings / ${sub}`;
   }
 
   const label = rest[0];

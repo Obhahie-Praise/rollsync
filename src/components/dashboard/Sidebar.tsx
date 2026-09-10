@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, UserRound, LogOut, Loader2 } from "lucide-react";
+import { X, UserRound, LogOut, Loader2, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { navLinks, bottomLinks } from "@/lib/nav-config";
 import OrgSwitcher, { type OrgItem } from "./OrgSwitcher";
@@ -42,6 +41,18 @@ export default function Sidebar({
   const [loggingOut, setLoggingOut] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
 
+  // ── Attendance dropdown state ────────────────────────────────────────────
+  // The dropdown is open if we're on an attendance route (auto), OR
+  // the user has toggled it open manually.
+  // We store the user's manual toggle separately so:
+  //   - On attendance routes → always open.
+  //   - On other routes → open only if user toggled.
+  const onAttendanceRoute =
+    pathname.split("/").filter(Boolean).includes("attendance");
+
+  const [attendanceManualOpen, setAttendanceManualOpen] = useState(false);
+  const attendanceOpen = onAttendanceRoute || attendanceManualOpen;
+
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -59,7 +70,9 @@ export default function Sidebar({
     } else {
       document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [isOpen]);
 
   const handleLogout = async () => {
@@ -75,9 +88,14 @@ export default function Sidebar({
   /** Is a given segment active based on the current pathname? */
   const isActive = (segment: string) => {
     const parts = pathname.split("/").filter(Boolean);
-    // parts[0] = slug, rest = path segments
     return parts.includes(segment);
   };
+
+  // ── Reduced motion check (client-only) ──────────────────────────────────
+  const prefersReduced =
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false;
 
   return (
     <AnimatePresence>
@@ -119,7 +137,6 @@ export default function Sidebar({
                         height={52}
                         className="rounded-full object-cover w-full h-full"
                         onError={(e) => {
-                          // fallback to icon on broken image
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
@@ -127,7 +144,9 @@ export default function Sidebar({
                       <UserRound size={26} />
                     )}
                   </div>
-                  <p className="font-medium text-[24px]">{displayName(user.name)}</p>
+                  <p className="font-medium text-[24px]">
+                    {displayName(user.name)}
+                  </p>
                 </div>
                 <button
                   onClick={onClose}
@@ -145,41 +164,92 @@ export default function Sidebar({
               <nav className="space-y-[4px]">
                 {navLinks.map((link) => {
                   if (link.children) {
-                    // Attendance group
+                    // ── Attendance group with animated dropdown ──────────
                     const anyChildActive = link.children.some((c) =>
                       isActive(c.matchSegment)
                     );
+
                     return (
                       <div key={link.label}>
-                        <div
+                        {/* Parent toggle button */}
+                        <button
+                          type="button"
+                          onClick={() => setAttendanceManualOpen((v) => !v)}
                           className={[
-                            "flex items-center gap-[12px] px-[24px] py-[12px] rounded-full cursor-pointer",
-                            anyChildActive ? "bg-blue text-white rounded-full" : "",
+                            "w-full flex items-center justify-between gap-[12px] px-[24px] py-[12px] rounded-full transition-colors",
+                            anyChildActive
+                              ? "bg-blue text-white"
+                              : "hover:bg-accent",
                           ].join(" ")}
+                          aria-expanded={attendanceOpen}
                         >
-                          <link.icon size={28} strokeWidth={1.4} />
-                          <p className="text-[24px] font-medium">{link.label}</p>
-                        </div>
-                        <div className="ml-[52px] space-y-[2px] pt-[8px]">
-                          {link.children.map((child) => {
-                            const active = isActive(child.matchSegment);
-                            return (
-                              <Link
-                                key={child.matchSegment}
-                                href={child.href(slug)}
-                                onClick={onClose}
-                                className={[
-                                  "block px-[16px] py-[8px] rounded-full text-[18px] font-medium transition-colors",
-                                  active
-                                    ? "bg-accent text-black"
-                                    : "hover:bg-input",
-                                ].join(" ")}
-                              >
-                                {child.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
+                          <div className="flex items-center gap-[12px]">
+                            <link.icon size={28} strokeWidth={1.4} />
+                            <p className="text-[24px] font-medium">
+                              {link.label}
+                            </p>
+                          </div>
+                          {/* Rotating chevron */}
+                          <motion.div
+                            animate={{ rotate: attendanceOpen ? 180 : 0 }}
+                            transition={
+                              prefersReduced
+                                ? { duration: 0 }
+                                : { duration: 0.2, ease: "easeInOut" }
+                            }
+                          >
+                            <ChevronDown
+                              size={20}
+                              strokeWidth={1.8}
+                              className={
+                                anyChildActive ? "text-white" : "text-text-accent"
+                              }
+                            />
+                          </motion.div>
+                        </button>
+
+                        {/* Animated children */}
+                        <AnimatePresence initial={false}>
+                          {attendanceOpen && (
+                            <motion.div
+                              key="attendance-children"
+                              initial={
+                                prefersReduced
+                                  ? { opacity: 1, height: "auto" }
+                                  : { opacity: 0, height: 0 }
+                              }
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={
+                                prefersReduced
+                                  ? { opacity: 1, height: "auto" }
+                                  : { opacity: 0, height: 0 }
+                              }
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                              style={{ overflow: "hidden" }}
+                            >
+                              <div className="ml-[52px] space-y-[2px] pt-[8px] pb-[2px]">
+                                {link.children.map((child) => {
+                                  const active = isActive(child.matchSegment);
+                                  return (
+                                    <Link
+                                      key={child.matchSegment}
+                                      href={child.href(slug)}
+                                      onClick={onClose}
+                                      className={[
+                                        "block px-[16px] py-[8px] rounded-full text-[18px] font-medium transition-colors",
+                                        active
+                                          ? "bg-accent text-black"
+                                          : "hover:bg-input",
+                                      ].join(" ")}
+                                    >
+                                      {child.label}
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     );
                   }
@@ -230,9 +300,16 @@ export default function Sidebar({
                 className="w-full flex items-center gap-[12px] px-[24px] py-[12px] rounded-2xl hover:bg-accent transition-colors disabled:opacity-60"
               >
                 {loggingOut ? (
-                  <Loader2 size={28} className="text-red-500 animate-spin" />
+                  <Loader2
+                    size={28}
+                    className="text-red-500 animate-spin"
+                  />
                 ) : (
-                  <LogOut size={28} strokeWidth={1.4} className="text-red-500" />
+                  <LogOut
+                    size={28}
+                    strokeWidth={1.4}
+                    className="text-red-500"
+                  />
                 )}
                 <p className="text-[24px] font-medium">
                   {loggingOut ? "Logging out…" : "Logout"}
