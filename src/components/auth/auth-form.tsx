@@ -61,7 +61,7 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
         router.push("/onboarding");
       }
     } catch (err: unknown) {
-      const error = err as any;
+      const error = err as { message?: string; error?: { message?: string } };
       setError(error?.message || error?.error?.message || "An error occurred");
       setLoading(false);
     }

@@ -1,7 +1,9 @@
+import Link from "next/link";
+
 export default function OnboardingPage() {
   return (
-    <div className="min-h-screen bg-[#f4f7fc] flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white rounded-[24px] shadow-sm border border-gray-100 p-10 text-center flex flex-col items-center">
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-md bg-white rounded-[30px] shadow-sm border border-gray-100 p-10 text-center flex flex-col items-center">
         <h1 className="logo-font text-[40px] font-semibold bg-clip-text text-transparent bg-linear-to-b from-[#7898FF] to-[#0926CF] mb-6">
           Roll SYNC
         </h1>
@@ -14,9 +16,9 @@ export default function OnboardingPage() {
           Let&apos;s get your workspace set up.
         </p>
         
-        <button className="w-full bg-[#0d34db] hover:bg-[#0b2bb5] text-white rounded-full py-[14px] px-6 font-medium text-[16px] transition-colors">
+        <Link href="/onboarding/one" className="w-full bg-[#0d34db] hover:bg-[#0b2bb5] text-white rounded-full py-[14px] px-6 font-medium text-[16px] transition-colors">
           Continue
-        </button>
+        </Link>
       </div>
     </div>
   );
