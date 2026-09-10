@@ -103,6 +103,8 @@ model Organization {
   location    String?
   // Attendance methods selected during onboarding (stored as comma-separated)
   attendanceMethods String?
+  // Optional logo URL from UploadThing
+  logoUrl     String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 

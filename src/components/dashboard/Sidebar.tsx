@@ -153,14 +153,14 @@ export default function Sidebar({
                       <div key={link.label}>
                         <div
                           className={[
-                            "flex items-center gap-[12px] px-[24px] py-[12px] rounded-2xl",
-                            anyChildActive ? "text-blue" : "",
+                            "flex items-center gap-[12px] px-[24px] py-[12px] rounded-full cursor-pointer",
+                            anyChildActive ? "bg-blue text-white rounded-full" : "",
                           ].join(" ")}
                         >
                           <link.icon size={28} strokeWidth={1.4} />
                           <p className="text-[24px] font-medium">{link.label}</p>
                         </div>
-                        <div className="ml-[52px] space-y-[2px]">
+                        <div className="ml-[52px] space-y-[2px] pt-[8px]">
                           {link.children.map((child) => {
                             const active = isActive(child.matchSegment);
                             return (
@@ -169,10 +169,10 @@ export default function Sidebar({
                                 href={child.href(slug)}
                                 onClick={onClose}
                                 className={[
-                                  "block px-[16px] py-[8px] rounded-xl text-[18px] font-medium transition-colors",
+                                  "block px-[16px] py-[8px] rounded-full text-[18px] font-medium transition-colors",
                                   active
-                                    ? "bg-blue text-white"
-                                    : "hover:bg-accent",
+                                    ? "bg-accent text-black"
+                                    : "hover:bg-input",
                                 ].join(" ")}
                               >
                                 {child.label}

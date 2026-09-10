@@ -72,7 +72,7 @@ export default function OrgSwitcher({ currentOrg, memberships }: OrgSwitcherProp
 
   const handleCreateOrg = () => {
     setOpen(false);
-    router.push("/onboarding");
+    router.push("/new-org");
   };
 
   const visible = showAll ? memberships : memberships.slice(0, PAGE_SIZE);
@@ -84,7 +84,7 @@ export default function OrgSwitcher({ currentOrg, memberships }: OrgSwitcherProp
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-[12px] px-[24px] py-[12px] hover:bg-accent rounded-2xl transition-colors w-full"
+        className="flex items-center gap-[12px] px-[24px] py-[12px] hover:bg-input rounded-full transition-colors w-full"
         aria-expanded={open}
         aria-haspopup="listbox"
       >
@@ -93,7 +93,9 @@ export default function OrgSwitcher({ currentOrg, memberships }: OrgSwitcherProp
           alt={currentOrg.name}
           width={25}
           height={25}
-          className="shrink-0"
+          unoptimized={!!currentOrg.image}
+          className="shrink-0 rounded-md object-cover"
+          style={{ width: 25, height: 25 }}
         />
         <p className="text-[16px] font-medium truncate flex-1 text-left">
           {currentOrg.name}
@@ -129,7 +131,9 @@ export default function OrgSwitcher({ currentOrg, memberships }: OrgSwitcherProp
                       alt={org.name}
                       width={22}
                       height={22}
-                      className="shrink-0"
+                      unoptimized={!!org.image}
+                      className="shrink-0 rounded-md object-cover"
+                      style={{ width: 22, height: 22 }}
                     />
                     <span className="flex-1 text-[14px] font-medium truncate text-left">
                       {org.name}

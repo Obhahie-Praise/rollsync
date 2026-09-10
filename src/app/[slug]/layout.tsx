@@ -22,7 +22,7 @@ export default async function SlugLayout({ children, params }: SlugLayoutProps) 
   // 2. Resolve organization by slug
   const organization = await prisma.organization.findUnique({
     where: { slug },
-    select: { id: true, name: true, slug: true, type: true },
+    select: { id: true, name: true, slug: true, type: true, logoUrl: true },
   });
 
   if (!organization) {
@@ -49,7 +49,7 @@ export default async function SlugLayout({ children, params }: SlugLayoutProps) 
     where: { userId: session.user.id },
     select: {
       organization: {
-        select: { id: true, name: true, slug: true, type: true },
+        select: { id: true, name: true, slug: true, type: true, logoUrl: true },
       },
     },
     orderBy: { createdAt: "asc" },
@@ -60,7 +60,7 @@ export default async function SlugLayout({ children, params }: SlugLayoutProps) 
     name: m.organization.name,
     slug: m.organization.slug,
     type: m.organization.type as OrgItem["type"],
-    image: null,
+    image: m.organization.logoUrl ?? null,
   }));
 
   const currentOrg: OrgItem = {
@@ -68,7 +68,7 @@ export default async function SlugLayout({ children, params }: SlugLayoutProps) 
     name: organization.name,
     slug: organization.slug,
     type: organization.type as OrgItem["type"],
-    image: null,
+    image: organization.logoUrl ?? null,
   };
 
   const user = {
