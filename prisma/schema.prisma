@@ -27,6 +27,7 @@ model User {
   onboardingProgress OnboardingProgress?
   notificationPrefs  NotificationPreferences?
   apiKeysCreated     ApiKey[]
+  linkedPeople       Person[]
 
   @@unique([email])
   @@map("user")
@@ -114,6 +115,7 @@ model Organization {
 
   memberships Membership[]
   apiKeys     ApiKey[]
+  people      Person[]
 
   @@map("organization")
 }
@@ -191,6 +193,53 @@ model ApiKey {
   @@index([organizationId])
   @@index([secretHash])
   @@map("api_key")
+}
+
+// ─── People ───────────────────────────────────────────────────────────────────
+// A Person is an attendance identity that belongs to an organization.
+// A Person is NOT automatically a Roll SYNC User — they are a separate concept.
+// The linkedUserId optionally connects a Person to a User account for those
+// who have been invited to Roll SYNC.
+
+enum PersonType {
+  STUDENT
+  TEACHER
+  STAFF
+  ADMINISTRATOR
+  DIRECTOR
+}
+
+enum PersonStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Person {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  // Optional contact info
+  email          String?
+  phone          String?
+  // Organization-assigned identifier (e.g. student ID, staff number)
+  // Used as a stable key for future attendance methods (QR, ID scan, roll call)
+  orgIdentifier  String?
+  personType     PersonType
+  status         PersonStatus @default(ACTIVE)
+  // Optional link to a Roll SYNC User — set only when the Person has been
+  // explicitly invited and has an account. NEVER auto-created on Person add.
+  linkedUserId   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  linkedUser   User?        @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+
+  // An org identifier must be unique within the organization (when set)
+  @@unique([organizationId, orgIdentifier])
+  @@index([organizationId])
+  @@index([linkedUserId])
+  @@map("person")
 }
 
 // ─── Onboarding progress ──────────────────────────────────────────────────────

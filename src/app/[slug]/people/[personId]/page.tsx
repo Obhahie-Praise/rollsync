@@ -2,15 +2,15 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { listPeople } from "@/lib/people-actions";
-import { PeopleClient } from "@/components/people/PeopleClient";
+import { getPerson } from "@/lib/people-actions";
+import { PersonDetailClient } from "@/components/people/PersonDetailClient";
 
 interface PageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string; personId: string }>;
 }
 
-export default async function PeoplePage({ params }: PageProps) {
-  const { slug } = await params;
+export default async function PersonDetailPage({ params }: PageProps) {
+  const { slug, personId } = await params;
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -37,21 +37,17 @@ export default async function PeoplePage({ params }: PageProps) {
 
   const canManage = membership.role === "OWNER" || membership.role === "ADMIN";
 
-  // Load initial people (active by default)
-  const result = await listPeople({ slug, status: "ACTIVE" });
-  const initialPeople = result.ok ? result.people : [];
+  const result = await getPerson(slug, personId);
 
-  // Count all active people for the header badge
-  const totalActive = await prisma.person.count({
-    where: { organizationId: org.id, status: "ACTIVE" },
-  });
+  if (!result.ok) {
+    notFound();
+  }
 
   return (
-    <PeopleClient
+    <PersonDetailClient
+      person={result.person}
       orgSlug={slug}
-      initialPeople={initialPeople}
       canManage={canManage}
-      totalActive={totalActive}
     />
   );
 }

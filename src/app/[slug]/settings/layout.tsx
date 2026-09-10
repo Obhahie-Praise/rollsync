@@ -17,14 +17,14 @@ export default async function SettingsLayout({
       <div className="flex flex-col sm:flex-row gap-10 sm:gap-14">
         {/* Left column: heading + nav */}
         <div className="sm:w-[200px] shrink-0">
-          <h1 className="text-[40px] font-semibold tracking-tight mb-7">
+          <h1 className="text-[40px] font-medium tracking-tight mb-7">
             Settings
           </h1>
           <SettingsSidebar slug={slug} />
         </div>
 
         {/* Right column: settings content */}
-        <main className="flex-1 min-w-0 max-w-[700px]">{children}</main>
+        <main className="flex-1 min-w-0 max-w-[700px] mx-auto pt-16">{children}</main>
       </div>
     </div>
   );

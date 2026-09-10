@@ -84,7 +84,7 @@ export default function OrgSwitcher({ currentOrg, memberships }: OrgSwitcherProp
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-[12px] px-[24px] py-[12px] hover:bg-input rounded-full transition-colors w-full"
+        className="flex items-center gap-[12px] px-[24px] py-[12px] hover:bg-input rounded-full transition-colors w-full shadow-[0px_3px_30px_0_#D3D3D3]"
         aria-expanded={open}
         aria-haspopup="listbox"
       >

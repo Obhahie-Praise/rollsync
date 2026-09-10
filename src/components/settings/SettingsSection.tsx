@@ -20,12 +20,12 @@ export function SettingsSection({
       {(title || description) && (
         <div className="space-y-0.5">
           {title && (
-            <h3 className="text-[18px] font-semibold text-foreground">
+            <h3 className="text-[24px] font-medium text-foreground">
               {title}
             </h3>
           )}
           {description && (
-            <p className="text-[14px] text-text-accent">{description}</p>
+            <p className="text-[16px] text-text-accent">{description}</p>
           )}
         </div>
       )}
@@ -58,9 +58,9 @@ export function SettingsRow({
         htmlFor={htmlFor}
         className="sm:w-[200px] shrink-0 pt-2"
       >
-        <p className="text-[15px] font-medium text-foreground">{label}</p>
+        <p className="text-[20px] font-medium text-foreground">{label}</p>
         {description && (
-          <p className="text-[13px] text-text-accent mt-0.5">{description}</p>
+          <p className="text-[16px] text-text-accent mt-0.5">{description}</p>
         )}
       </LabelEl>
       <div className="flex-1 min-w-0">{children}</div>
