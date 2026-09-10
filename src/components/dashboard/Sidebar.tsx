@@ -84,7 +84,7 @@ const Sidebar = () => {
           <p className="text-[16px] font-medium">John Doe Group of Schools</p>
           <ChevronsUpDown size={20} className="text-text-accent" />
         </button>
-        <div className="">
+        <div className="space-y-[12px]">
           {/* Side bar links */}
           {toplinks.map((link) => {
             return (
