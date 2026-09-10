@@ -1,0 +1,119 @@
+/**
+ * Centralized workspace navigation configuration.
+ * All sidebar links and breadcrumb labels are derived from this file.
+ */
+
+import {
+  Layout,
+  Calendar,
+  FaceSlightlySmiling,
+  Folder,
+  ClipboardPen,
+  Webhook,
+  Cog,
+  Headset,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+export interface NavLink {
+  label: string;
+  href: (slug: string) => string;
+  icon: LucideIcon;
+  /** pathname pattern used for active detection */
+  matchSegment: string;
+}
+
+export interface NavGroup {
+  label: string;
+  icon: LucideIcon;
+  /** If set, this is a direct link. */
+  href?: (slug: string) => string;
+  matchSegment?: string;
+  /** If set, this item has children (dropdown). */
+  children?: { label: string; href: (slug: string) => string; matchSegment: string }[];
+}
+
+export const navLinks: NavGroup[] = [
+  {
+    label: "Overview",
+    icon: Layout,
+    href: (slug) => `/${slug}/overview`,
+    matchSegment: "overview",
+  },
+  {
+    label: "Attendance",
+    icon: Calendar,
+    children: [
+      {
+        label: "Session",
+        href: (slug) => `/${slug}/attendance/session`,
+        matchSegment: "session",
+      },
+      {
+        label: "Record",
+        href: (slug) => `/${slug}/attendance/record`,
+        matchSegment: "record",
+      },
+    ],
+  },
+  {
+    label: "People",
+    icon: FaceSlightlySmiling,
+    href: (slug) => `/${slug}/people`,
+    matchSegment: "people",
+  },
+  {
+    label: "Organization",
+    icon: Folder,
+    href: (slug) => `/${slug}/organization`,
+    matchSegment: "organization",
+  },
+  {
+    label: "Reports",
+    icon: ClipboardPen,
+    href: (slug) => `/${slug}/reports`,
+    matchSegment: "reports",
+  },
+  {
+    label: "Developers",
+    icon: Webhook,
+    href: (slug) => `/${slug}/developers`,
+    matchSegment: "developers",
+  },
+  {
+    label: "Settings",
+    icon: Cog,
+    href: (slug) => `/${slug}/settings`,
+    matchSegment: "settings",
+  },
+];
+
+export const bottomLinks = [
+  {
+    label: "Help center",
+    icon: Headset,
+    href: (slug: string) => `/${slug}/help`,
+    matchSegment: "help",
+  },
+];
+
+/**
+ * Given a pathname, return the human-readable breadcrumb label.
+ * e.g. "/acme-school/attendance/session" → "Attendance / Session"
+ */
+export function getBreadcrumb(pathname: string): string {
+  const segments = pathname.split("/").filter(Boolean);
+  // segments[0] = slug, segments[1..] = route
+
+  if (segments.length < 2) return "Overview";
+
+  const rest = segments.slice(1); // drop slug
+
+  if (rest[0] === "attendance" && rest[1]) {
+    const child = rest[1].charAt(0).toUpperCase() + rest[1].slice(1);
+    return `Attendance / ${child}`;
+  }
+
+  const label = rest[0];
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}

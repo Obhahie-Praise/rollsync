@@ -16,14 +16,10 @@ export default async function OverviewPage({ params }: PageProps) {
   if (!org) notFound();
 
   return (
-    <div className="min-h-screen p-10">
-      <h1 className="logo-font text-[32px] font-semibold bg-clip-text text-transparent bg-linear-to-b from-[#7898FF] to-[#0926CF] mb-2">
-        Roll SYNC
-      </h1>
-      <p className="text-text-accent text-[16px] mb-8">{org.name}</p>
+    <div className="p-10">
       <h2 className="text-[40px] font-medium">Overview</h2>
       <p className="text-text-accent mt-2 text-[18px]">
-        Your dashboard is being set up. Attendance features coming soon.
+        Welcome to {org.name}. Attendance features coming soon.
       </p>
     </div>
   );
