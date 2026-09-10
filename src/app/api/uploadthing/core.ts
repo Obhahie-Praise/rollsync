@@ -1,42 +1,51 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 const f = createUploadthing();
 
-const auth = () => ({ id: "fakeId" }); // Fake auth function
+// ─── Shared auth middleware ────────────────────────────────────────────────────
 
-// FileRouter for your app, can contain multiple FileRoutes
+async function requireAuth() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    throw new UploadThingError("Unauthorized");
+  }
+  return { userId: session.user.id };
+}
+
+// ─── File router ──────────────────────────────────────────────────────────────
+
 export const ourFileRouter = {
-  // Define as many FileRoutes as you like, each with a unique routeSlug
+  /**
+   * General image uploader (kept for compatibility).
+   */
   imageUploader: f({
     image: {
-      /**
-       * For full list of options and defaults, see the File Route API reference
-       * @see https://docs.uploadthing.com/file-routes#route-config
-       */
       maxFileSize: "4MB",
       maxFileCount: 1,
     },
   })
-    // Set permissions and file types for this FileRoute
-    .middleware(async () => {
-      // This code runs on your server before upload
-      const user = await auth();
-
-      // If you throw, the user will not be able to upload
-      if (!user) throw new UploadThingError("Unauthorized");
-
-      // Whatever is returned here is accessible in onUploadComplete as `metadata`
-      return { userId: user.id };
-    })
+    .middleware(requireAuth)
     .onUploadComplete(async ({ metadata, file }) => {
-      // This code RUNS ON YOUR SERVER after upload
-      console.log("Upload complete for userId:", metadata.userId);
+      return { uploadedBy: metadata.userId, url: file.ufsUrl };
+    }),
 
-      console.log("file url", file.ufsUrl);
-
-      // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
-      return { uploadedBy: metadata.userId };
+  /**
+   * Organization logo uploader.
+   * Accepts any image format UploadThing supports, up to 2 MB.
+   * Used by the /new-org flow and future org settings screens.
+   */
+  orgLogo: f({
+    image: {
+      maxFileSize: "2MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(requireAuth)
+    .onUploadComplete(async ({ metadata, file }) => {
+      return { uploadedBy: metadata.userId, url: file.ufsUrl };
     }),
 } satisfies FileRouter;
 
