@@ -43,7 +43,7 @@ async function requireSession() {
 async function requireOrgMember(userId: string, slug: string) {
   const org = await prisma.organization.findUnique({
     where: { slug },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, publicId: true },
   });
   if (!org) throw new Error("Organization not found");
 
@@ -578,7 +578,7 @@ export interface AddMemberInput {
 }
 
 export type AddMemberResult =
-  | { ok: true; personId: string; isNewUser: boolean; isNewPerson: boolean }
+  | { ok: true; personId: string; isNewUser: boolean; isNewPerson: boolean; initialPassword: string }
   | { ok: false; error: string; field?: "name" | "email" | "personType" };
 
 export async function addMember(input: AddMemberInput): Promise<AddMemberResult> {
@@ -633,13 +633,16 @@ export async function addMember(input: AddMemberInput): Promise<AddMemberResult>
     userId = existingUser.id;
   } else {
     // Create the user via Better Auth (handles hashing, account record, etc.)
-    // The initial password is the orgId. The member should change it after first login.
+    // The initial password is the org's publicId (human-readable, e.g. "ACME-123").
+    // Falls back to a safe prefix + last 8 chars of the CUID if publicId is not set yet.
+    // The member should change it after first login.
     try {
+      const initialPassword = orgData.org.publicId ?? `rollsync-${orgData.org.id.slice(-8)}`;
       const signUpResult = await auth.api.signUpEmail({
         body: {
           name,
           email,
-          password: orgData.org.id, // orgId as temporary initial password
+          password: initialPassword,
         },
         // Pass empty headers — this is a server-initiated creation
         headers: new Headers(),
@@ -739,7 +742,7 @@ export async function addMember(input: AddMemberInput): Promise<AddMemberResult>
       return { personId, isNewPerson };
     });
 
-    return { ok: true, personId: result.personId, isNewUser, isNewPerson: result.isNewPerson };
+    return { ok: true, personId: result.personId, isNewUser, isNewPerson: result.isNewPerson, initialPassword: orgData.org.publicId ?? `rollsync-${orgData.org.id.slice(-8)}` };
   } catch (err) {
     console.error("[addMember] transaction failed:", err);
     const msg = err instanceof Error ? err.message : "Failed to complete member setup.";

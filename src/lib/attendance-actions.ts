@@ -1150,3 +1150,57 @@ export async function resolveTeacherContext(
     };
   }
 }
+
+
+// ─── 8. Complete session ───────────────────────────────────────────────────────
+
+export type CompleteSessionResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export async function completeSession(
+  slug: string,
+  sessionId: string
+): Promise<CompleteSessionResult> {
+  let authSession;
+  try {
+    authSession = await getAuthSession();
+  } catch {
+    return { ok: false, error: "Not authenticated" };
+  }
+
+  try {
+    const { org, role } = await requireOrgMember(authSession.user.id, slug);
+
+    const sess = await prisma.attendanceSession.findUnique({
+      where: { id: sessionId },
+      include: { teacherPerson: { select: { linkedUserId: true } } },
+    });
+    if (!sess || sess.organizationId !== org.id)
+      return { ok: false, error: "Session not found." };
+
+    const isAdmin = role === "OWNER" || role === "ADMIN";
+    const isTeacher = sess.teacherPerson.linkedUserId === authSession.user.id;
+    if (!isAdmin && !isTeacher)
+      return { ok: false, error: "Not authorized." };
+
+    if (sess.status === "COMPLETED") return { ok: true }; // idempotent
+
+    await prisma.attendanceSession.update({
+      where: { id: sessionId },
+      data: { status: "COMPLETED" },
+    });
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[completeSession]", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error ? err.message : "Failed to complete session.",
+    };
+  }
+}
+
+
+

@@ -12,6 +12,8 @@ import {
   UserRound,
   ChevronDown,
   Check,
+  CheckCheck,
+  Copy,
   UserPlus,
   ShieldCheck,
 } from "lucide-react";
@@ -468,6 +470,14 @@ function AddMemberModal({ orgSlug, onCreated, onClose }: AddMemberModalProps) {
   const [isPending, startTransition] = useTransition();
   const nameRef = useRef<HTMLInputElement>(null);
 
+  // Credentials shown after successful creation
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    email: string;
+    initialPassword: string;
+    name: string;
+  } | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+
   useEffect(() => {
     nameRef.current?.focus();
   }, []);
@@ -516,7 +526,7 @@ function AddMemberModal({ orgSlug, onCreated, onClose }: AddMemberModalProps) {
         return;
       }
 
-      // Reload list to pick up the newly created person with linkedUser info
+      // Notify parent immediately so the list updates
       onCreated({
         id: result.personId,
         name: name.trim(),
@@ -531,7 +541,13 @@ function AddMemberModal({ orgSlug, onCreated, onClose }: AddMemberModalProps) {
         linkedUserRole: "MEMBER",
         createdAt: new Date(),
       });
-      onClose();
+
+      // Show credentials before closing
+      setCreatedCredentials({
+        email: email.trim(),
+        initialPassword: result.initialPassword,
+        name: name.trim(),
+      });
     });
   };
 
@@ -540,6 +556,87 @@ function AddMemberModal({ orgSlug, onCreated, onClose }: AddMemberModalProps) {
       ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
       : false;
 
+  // ── Success / credentials view ──────────────────────────────────────────────
+  if (createdCredentials) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center px-4"
+        aria-modal="true"
+        role="dialog"
+        aria-label="Account created"
+      >
+        <div
+          className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+        <motion.div
+          initial={prefersReduced ? {} : { opacity: 0, scale: 0.97, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="relative z-10 w-full max-w-[480px] bg-background rounded-2xl shadow-[0px_8px_40px_0_rgba(0,0,0,0.15)] border border-black/6 p-6"
+        >
+          <div className="text-center mb-6">
+            <div className="w-12 h-12 rounded-full bg-green/10 flex items-center justify-center mx-auto mb-3">
+              <Check size={22} className="text-green" />
+            </div>
+            <h2 className="text-[18px] font-semibold">Account created</h2>
+            <p className="text-[13px] text-text-accent mt-1">
+              Share these login credentials with {createdCredentials.name}.
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-accent/50 border border-black/8 p-4 space-y-3 mb-5">
+            <div>
+              <p className="text-[11px] font-semibold text-text-accent uppercase tracking-wide mb-1">
+                Email
+              </p>
+              <p className="text-[15px] font-medium">{createdCredentials.email}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-text-accent uppercase tracking-wide mb-1">
+                Initial password
+              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-[15px] font-mono font-medium flex-1">
+                  {createdCredentials.initialPassword}
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(createdCredentials.initialPassword);
+                      setCopiedPassword(true);
+                      setTimeout(() => setCopiedPassword(false), 2000);
+                    } catch { /* silent */ }
+                  }}
+                  className="shrink-0 p-1.5 rounded-lg bg-white border border-black/8 text-text-accent hover:text-foreground transition-colors"
+                  aria-label="Copy password"
+                >
+                  {copiedPassword
+                    ? <CheckCheck size={14} className="text-green" />
+                    : <Copy size={14} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[12px] text-text-accent text-center mb-5">
+            They should change their password after first login via Settings → Security.
+          </p>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 rounded-full text-[14px] font-medium bg-blue text-white hover:bg-blue/90 transition-colors"
+          >
+            Done
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Add member form ─────────────────────────────────────────────────────────
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"

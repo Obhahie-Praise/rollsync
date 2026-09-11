@@ -108,6 +108,8 @@ model Organization {
   attendanceMethods String?
   // Optional logo URL from UploadThing
   logoUrl     String?
+  // Human-facing public identifier (e.g. "ACME-001") — never the DB CUID
+  publicId    String? @unique
   // Polar customer ID — set when the org first interacts with billing
   polarCustomerId String?
   createdAt   DateTime   @default(now())

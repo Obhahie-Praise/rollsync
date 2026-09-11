@@ -84,6 +84,22 @@ export async function getOnboardingProgress(): Promise<{
   };
 }
 
+// ─── publicId generator ───────────────────────────────────────────────────────
+
+/**
+ * Generate a human-facing organization ID like "ACME-042".
+ * Not guaranteed unique — the caller must verify against the DB.
+ */
+function generatePublicId(name: string, suffix: string = ""): string {
+  const prefix = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 4)
+    .padEnd(4, "X");
+  const digits = Math.floor(100 + Math.random() * 900).toString();
+  return `${prefix}-${digits}${suffix}`;
+}
+
 // ─── completeOnboarding ───────────────────────────────────────────────────────
 
 /**
@@ -128,6 +144,23 @@ export async function completeOnboarding(
   try {
     const slug = await generateUniqueSlug(data.name.trim());
 
+    // ── Generate a unique publicId ────────────────────────────────────────
+    let publicId: string | null = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate =
+        generatePublicId(data.name!.trim()) +
+        (attempt > 0 ? attempt.toString() : "");
+      const exists = await prisma.organization.findUnique({
+        where: { publicId: candidate },
+        select: { id: true },
+      });
+      if (!exists) {
+        publicId = candidate;
+        break;
+      }
+    }
+    // If all 10 attempts collide, publicId stays null — org still works fine.
+
     // ── Create org + membership + mark progress atomically ────────────────
     await prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
@@ -139,6 +172,7 @@ export async function completeOnboarding(
           sizeRange: data.sizeRange ?? null,
           location: data.location?.trim() ?? null,
           attendanceMethods: data.attendanceMethods?.join(",") ?? null,
+          publicId: publicId,
         },
       });
 

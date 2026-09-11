@@ -13,6 +13,8 @@ import {
   Cog,
   Headset,
   TableProperties,
+  CalendarDays,
+  BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -116,6 +118,38 @@ export const navLinks: NavGroup[] = [
 ];
 
 export const bottomLinks = [
+  {
+    label: "Help center",
+    icon: Headset,
+    href: (slug: string) => `/${slug}/help`,
+    matchSegment: "help",
+  },
+];
+
+// ─── Teacher navigation ────────────────────────────────────────────────────────
+
+export const teacherNavLinks: NavGroup[] = [
+  {
+    label: "Today",
+    icon: CalendarDays,
+    href: (slug) => `/${slug}/teacher/today`,
+    matchSegment: "today",
+  },
+  {
+    label: "My Classes",
+    icon: BookOpen,
+    href: (slug) => `/${slug}/teacher/classes`,
+    matchSegment: "classes",
+  },
+  {
+    label: "Timetable",
+    icon: TableProperties,
+    href: (slug) => `/${slug}/teacher/timetable`,
+    matchSegment: "timetable",
+  },
+];
+
+export const teacherBottomLinks = [
   {
     label: "Help center",
     icon: Headset,

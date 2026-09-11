@@ -15,6 +15,8 @@ interface WorkspaceShellProps {
   };
   currentOrg: OrgItem;
   memberships: OrgItem[];
+  /** True when the current user is linked as a TEACHER in this org (and is not an admin/owner) */
+  isTeacher?: boolean;
 }
 
 export default function WorkspaceShell({
@@ -23,6 +25,7 @@ export default function WorkspaceShell({
   user,
   currentOrg,
   memberships,
+  isTeacher = false,
 }: WorkspaceShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -87,6 +90,7 @@ export default function WorkspaceShell({
         user={user}
         currentOrg={currentOrg}
         memberships={memberships}
+        isTeacher={isTeacher}
       />
 
       <SearchModal

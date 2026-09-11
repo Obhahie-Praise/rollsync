@@ -7,7 +7,7 @@ import { X, UserRound, LogOut, Loader2, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
-import { navLinks, bottomLinks } from "@/lib/nav-config";
+import { navLinks, bottomLinks, teacherNavLinks, teacherBottomLinks } from "@/lib/nav-config";
 import OrgSwitcher, { type OrgItem } from "./OrgSwitcher";
 
 interface SidebarProps {
@@ -20,6 +20,8 @@ interface SidebarProps {
   };
   currentOrg: OrgItem;
   memberships: OrgItem[];
+  /** True when the current user is linked as a TEACHER in this org (and is not an admin/owner) */
+  isTeacher?: boolean;
 }
 
 /** Truncate display name: if over 14 chars, show first name only */
@@ -35,11 +37,16 @@ export default function Sidebar({
   user,
   currentOrg,
   memberships,
+  isTeacher = false,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+
+  // ── Active nav based on role ─────────────────────────────────────────────
+  const activeNavLinks = isTeacher ? teacherNavLinks : navLinks;
+  const activeBottomLinks = isTeacher ? teacherBottomLinks : bottomLinks;
 
   // ── Dropdown state ───────────────────────────────────────────────────────
   const [manualOpenGroups, setManualOpenGroups] = useState<Record<string, boolean>>({});
@@ -148,6 +155,11 @@ export default function Sidebar({
                   </div>
                   <p className="font-semibold text-[18px] sm:text-[20px]">
                     {displayName(user.name)}
+                    {isTeacher && (
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue/10 text-blue ml-1">
+                        Teacher
+                      </span>
+                    )}
                   </p>
                 </div>
                 <button
@@ -164,7 +176,7 @@ export default function Sidebar({
 
               {/* Nav links */}
               <nav className="space-y-2" aria-label="Main navigation">
-                {navLinks.map((link) => {
+                {activeNavLinks.map((link) => {
                   if (link.children) {
                     const childSegments = link.children.map((c) => c.matchSegment);
                     const anyChildActive = childSegments.some((seg) => isActive(seg));
@@ -177,7 +189,7 @@ export default function Sidebar({
                           type="button"
                           onClick={() => toggleGroup(link.label)}
                           className={[
-                            "w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-colors",
+                            "w-full flex items-center justify-between gap-3 px-[24px] py-3 rounded-full transition-colors",
                             anyChildActive
                               ? "bg-blue text-white"
                               : "hover:bg-accent",
@@ -272,7 +284,7 @@ export default function Sidebar({
 
             {/* Bottom section — pinned to bottom */}
             <div className="p-5 border-t border-black/5 space-y-1">
-              {bottomLinks.map((link) => {
+              {activeBottomLinks.map((link) => {
                 const active = isActive(link.matchSegment);
                 return (
                   <Link
