@@ -113,9 +113,15 @@ model Organization {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  memberships Membership[]
-  apiKeys     ApiKey[]
-  people      Person[]
+  memberships         Membership[]
+  apiKeys             ApiKey[]
+  people              Person[]
+  classes             Class[]
+  classMemberships    ClassMembership[]
+  subjects            Subject[]
+  rooms               Room[]
+  timetableEntries    TimetableEntry[]
+  timetableExceptions TimetableException[]
 
   @@map("organization")
 }
@@ -235,11 +241,205 @@ model Person {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   linkedUser   User?        @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
 
+  // Class memberships for students
+  classMemberships     ClassMembership[]
+  // Timetable entries where this person is the teacher
+  timetableAsTeacher   TimetableEntry[]         @relation("TimetableTeacher")
+  // Timetable exceptions where this person is a substitute
+  timetableAsSubstitute TimetableException[]    @relation("TimetableSubstitute")
+
   // An org identifier must be unique within the organization (when set)
   @@unique([organizationId, orgIdentifier])
   @@index([organizationId])
   @@index([linkedUserId])
   @@map("person")
+}
+
+// ─── School infrastructure ────────────────────────────────────────────────────
+
+// A Class is a named cohort/group within an organization.
+// e.g. "SS2A", "Grade 10 Blue", "Year 11", "Computer Science Cohort"
+// The class has a stable cuid that will anchor future QR identity.
+
+enum ClassStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Class {
+  id             String      @id @default(cuid())
+  organizationId String
+  name           String
+  // Short code shown in timetable cells (optional)
+  code           String?
+  description    String?
+  status         ClassStatus @default(ACTIVE)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships        ClassMembership[]
+  timetableEntries   TimetableEntry[]
+
+  // Names must be unique within an org
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("class")
+}
+
+// ClassMembership: a Person (usually a Student) belonging to a Class.
+// Preserves history: a student may move classes; old records remain with
+// an endDate set so past attendance remains historically correct.
+
+model ClassMembership {
+  id             String    @id @default(cuid())
+  organizationId String
+  classId        String
+  personId       String
+  // Effective date range — endDate null means currently enrolled
+  startDate      DateTime  @default(now())
+  endDate        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([classId])
+  @@index([personId])
+  @@map("class_membership")
+}
+
+// Subject: a reusable teaching subject within an organization.
+// e.g. "Mathematics", "Physics", "English Language"
+
+model Subject {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  // Optional short code (e.g. "MATH", "PHY")
+  code           String?
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  timetableEntries TimetableEntry[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("subject")
+}
+
+// Room: a lightweight venue/location within an organization.
+// e.g. "Room 12", "Science Lab", "Computer Lab", "Hall", "Field", "Online"
+
+model Room {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  // Optional short code displayed in timetable cells
+  code           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  timetableEntries TimetableEntry[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("room")
+}
+
+// TimetableEntry: describes a RECURRING class session.
+// Source of truth: Teacher + Class + Subject + Time + Days.
+// Period labels (e.g. "Period 1") are optional metadata.
+//
+// Days of week stored as comma-separated integers (0=Sun, 1=Mon ... 6=Sat)
+// to keep the schema simple and avoid array types.
+
+enum TimetableStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model TimetableEntry {
+  id             String          @id @default(cuid())
+  organizationId String
+  // The teacher (Person with personType=TEACHER) responsible for this slot
+  teacherPersonId String
+  classId        String
+  subjectId      String
+  roomId         String?
+  // Time as "HH:MM" 24-hour strings for simplicity and portability
+  startTime      String          // e.g. "08:00"
+  endTime        String          // e.g. "08:40"
+  // Comma-separated ISO day numbers: "1,2,3,4,5" = Mon-Fri
+  daysOfWeek     String
+  // Effective date range for this recurring schedule
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  // Optional period label metadata
+  periodLabel    String?
+  status         TimetableStatus @default(ACTIVE)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teacherPerson Person               @relation("TimetableTeacher", fields: [teacherPersonId], references: [id], onDelete: Restrict)
+  class         Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject       Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  room          Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  exceptions    TimetableException[]
+
+  @@index([organizationId])
+  @@index([teacherPersonId])
+  @@index([classId])
+  @@index([subjectId])
+  @@map("timetable_entry")
+}
+
+// TimetableException: overrides a specific occurrence of a TimetableEntry.
+// Used for: cancellation, rescheduling, substitute teacher, room change.
+
+enum ExceptionType {
+  CANCELLED    // Class is cancelled on this date
+  RESCHEDULED  // Class moved to a different time on the same or another date
+  SUBSTITUTED  // Different teacher covers the class
+  ROOM_CHANGE  // Different room used
+  OTHER        // General override
+}
+
+model TimetableException {
+  id               String        @id @default(cuid())
+  organizationId   String
+  timetableEntryId String
+  // The specific date this exception applies to (the original scheduled date)
+  exceptionDate    DateTime
+  exceptionType    ExceptionType
+  // If rescheduled: override time / date
+  newDate          DateTime?
+  newStartTime     String?
+  newEndTime       String?
+  // If substituted: the substitute teacher Person
+  substitutePersonId String?
+  // If room change: the new room
+  newRoomId        String?
+  // Free-text note for context
+  note             String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  timetableEntry  TimetableEntry @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
+  substitutePerson Person?       @relation("TimetableSubstitute", fields: [substitutePersonId], references: [id], onDelete: SetNull)
+
+  @@unique([timetableEntryId, exceptionDate])
+  @@index([organizationId])
+  @@index([timetableEntryId])
+  @@map("timetable_exception")
 }
 
 // ─── Onboarding progress ──────────────────────────────────────────────────────

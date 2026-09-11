@@ -404,7 +404,7 @@ export function PersonDetailClient({
         )}
       </AnimatePresence>
 
-      <div className="px-8 sm:px-14 pb-20">
+      <div className="px-20 sm:px-32 pb-20">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 mb-8 text-[13px] text-text-accent">
           <Link

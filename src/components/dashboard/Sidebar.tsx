@@ -41,17 +41,23 @@ export default function Sidebar({
   const [loggingOut, setLoggingOut] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
 
-  // ── Attendance dropdown state ────────────────────────────────────────────
-  // The dropdown is open if we're on an attendance route (auto), OR
-  // the user has toggled it open manually.
-  // We store the user's manual toggle separately so:
-  //   - On attendance routes → always open.
-  //   - On other routes → open only if user toggled.
-  const onAttendanceRoute =
-    pathname.split("/").filter(Boolean).includes("attendance");
+  // ── Dropdown state ───────────────────────────────────────────────────────
+  // Track which nav groups are manually opened. Auto-open if currently on
+  // a matching route.
+  const [manualOpenGroups, setManualOpenGroups] = useState<
+    Record<string, boolean>
+  >({});
 
-  const [attendanceManualOpen, setAttendanceManualOpen] = useState(false);
-  const attendanceOpen = onAttendanceRoute || attendanceManualOpen;
+  function isGroupOpen(label: string, matchSegments: string[]): boolean {
+    const onRoute = matchSegments.some((seg) =>
+      pathname.split("/").filter(Boolean).includes(seg)
+    );
+    return onRoute || !!manualOpenGroups[label];
+  }
+
+  function toggleGroup(label: string) {
+    setManualOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
 
   // Close on Escape
   useEffect(() => {
@@ -164,24 +170,25 @@ export default function Sidebar({
               <nav className="space-y-[4px]">
                 {navLinks.map((link) => {
                   if (link.children) {
-                    // ── Attendance group with animated dropdown ──────────
-                    const anyChildActive = link.children.some((c) =>
-                      isActive(c.matchSegment)
+                    const childSegments = link.children.map((c) => c.matchSegment);
+                    const anyChildActive = childSegments.some((seg) =>
+                      isActive(seg)
                     );
+                    const groupOpen = isGroupOpen(link.label, childSegments);
 
                     return (
                       <div key={link.label}>
                         {/* Parent toggle button */}
                         <button
                           type="button"
-                          onClick={() => setAttendanceManualOpen((v) => !v)}
+                          onClick={() => toggleGroup(link.label)}
                           className={[
                             "w-full flex items-center justify-between gap-[12px] px-[24px] py-[12px] rounded-full transition-colors",
                             anyChildActive
                               ? "bg-blue text-white"
                               : "hover:bg-accent",
                           ].join(" ")}
-                          aria-expanded={attendanceOpen}
+                          aria-expanded={groupOpen}
                         >
                           <div className="flex items-center gap-[12px]">
                             <link.icon size={28} strokeWidth={1.4} />
@@ -191,7 +198,7 @@ export default function Sidebar({
                           </div>
                           {/* Rotating chevron */}
                           <motion.div
-                            animate={{ rotate: attendanceOpen ? 180 : 0 }}
+                            animate={{ rotate: groupOpen ? 180 : 0 }}
                             transition={
                               prefersReduced
                                 ? { duration: 0 }
@@ -210,9 +217,9 @@ export default function Sidebar({
 
                         {/* Animated children */}
                         <AnimatePresence initial={false}>
-                          {attendanceOpen && (
+                          {groupOpen && (
                             <motion.div
-                              key="attendance-children"
+                              key={`${link.label}-children`}
                               initial={
                                 prefersReduced
                                   ? { opacity: 1, height: "auto" }

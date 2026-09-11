@@ -12,6 +12,7 @@ import {
   Webhook,
   Cog,
   Headset,
+  TableProperties,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -53,6 +54,32 @@ export const navLinks: NavGroup[] = [
         label: "Record",
         href: (slug) => `/${slug}/attendance/record`,
         matchSegment: "record",
+      },
+    ],
+  },
+  {
+    label: "Timetable",
+    icon: TableProperties,
+    children: [
+      {
+        label: "Schedule",
+        href: (slug) => `/${slug}/timetable`,
+        matchSegment: "timetable",
+      },
+      {
+        label: "Classes",
+        href: (slug) => `/${slug}/timetable/classes`,
+        matchSegment: "classes",
+      },
+      {
+        label: "Subjects",
+        href: (slug) => `/${slug}/timetable/subjects`,
+        matchSegment: "subjects",
+      },
+      {
+        label: "Rooms",
+        href: (slug) => `/${slug}/timetable/rooms`,
+        matchSegment: "rooms",
       },
     ],
   },
