@@ -75,8 +75,8 @@ export default function WorkspaceShell({
         userImage={user.image}
       />
 
-      {/* Offset content below fixed header */}
-      <div className="pt-[132px]">
+      {/* Offset content below fixed header — matches the header's py-3+logo height on mobile */}
+      <div className="pt-[72px] sm:pt-[80px]">
         {children}
       </div>
 

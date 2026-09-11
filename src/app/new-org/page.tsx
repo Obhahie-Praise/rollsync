@@ -161,7 +161,7 @@ export default function NewOrgPage() {
           {/* Form */}
           <div className="space-y-6 w-full">
             {/* ── Logo upload ────────────────────────────────────────────── */}
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-start gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -358,7 +358,7 @@ export default function NewOrgPage() {
                 type="button"
                 onClick={handleCancel}
                 disabled={isDisabled}
-                className="px-5 py-3 rounded-full bg-gray-200 text-foreground text-[14px] font-medium hover:bg-gray-300 active:scale-[0.97] transition-all disabled:opacity-50"
+                className="px-5 py-3 rounded-full bg-gray-200 text-foreground text-[20px] font-medium hover:bg-gray-300 active:scale-[0.97] transition-all disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -366,7 +366,7 @@ export default function NewOrgPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={isDisabled}
-                className="flex items-center gap-1.5 px-5 py-3 rounded-full bg-[#0d34db] text-white text-[14px] font-medium hover:bg-[#0b2bb5] active:scale-[0.97] transition-all disabled:opacity-70"
+                className="flex items-center gap-1.5 px-5 py-3 rounded-full bg-[#0d34db] text-white text-[20px] font-medium hover:bg-[#0b2bb5] active:scale-[0.97] transition-all disabled:opacity-70"
               >
                 {submitting ? (
                   <>

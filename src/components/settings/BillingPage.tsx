@@ -181,12 +181,12 @@ export function BillingPage({ slug, subscription, canManage }: BillingPageProps)
           <div className="rounded-2xl bg-white/60 border border-black/8 p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[18px] font-semibold text-foreground">Free</p>
-                <p className="text-[14px] text-text-accent mt-0.5">
+                <p className="text-[20px] font-semibold text-foreground">Free</p>
+                <p className="text-[16px] text-text-accent mt-0.5">
                   Basic attendance for getting started
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium bg-accent text-text-accent shrink-0">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[16px] font-medium bg-accent text-text-accent shrink-0">
                 Current plan
               </span>
             </div>
@@ -242,8 +242,8 @@ export function BillingPage({ slug, subscription, canManage }: BillingPageProps)
                 className="rounded-2xl bg-white/60 border border-black/8 p-4 space-y-3"
               >
                 <div>
-                  <p className="text-[15px] font-semibold">{plan.name}</p>
-                  <p className="text-[12px] text-text-accent mt-0.5">
+                  <p className="text-[20px] font-semibold">{plan.name}</p>
+                  <p className="text-[16px] text-text-accent mt-0.5">
                     {plan.description}
                   </p>
                 </div>
@@ -251,9 +251,9 @@ export function BillingPage({ slug, subscription, canManage }: BillingPageProps)
                   {plan.features.map((f) => (
                     <li
                       key={f}
-                      className="flex items-center gap-1.5 text-[12px] text-text-accent"
+                      className="flex items-center gap-1.5 text-[16px] text-text-accent"
                     >
-                      <CheckCircle size={11} className="text-green shrink-0" />
+                      <CheckCircle size={15} className="text-green shrink-0" />
                       {f}
                     </li>
                   ))}
@@ -268,7 +268,7 @@ export function BillingPage({ slug, subscription, canManage }: BillingPageProps)
                 href="https://rollsync.app/pricing"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all"
+                className="inline-flex items-center gap-2 px-[24px] py-[12px] rounded-full text-[14px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all"
               >
                 <ExternalLink size={14} />
                 View plans

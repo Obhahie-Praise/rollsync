@@ -187,8 +187,8 @@ function CreateModal({ orgSlug, onCreated, onClose }: CreateModalProps) {
           <>
             <div className="flex items-start justify-between mb-5">
               <div>
-                <h2 className="text-[18px] font-semibold">Create API key</h2>
-                <p className="text-[13px] text-text-accent mt-0.5">
+                <h2 className="text-[24px] font-semibold">Create API key</h2>
+                <p className="text-[16px] text-text-accent mt-1">
                   Give your key a name that identifies its purpose.
                 </p>
               </div>
@@ -204,7 +204,7 @@ function CreateModal({ orgSlug, onCreated, onClose }: CreateModalProps) {
 
             {/* Key name */}
             <div className="space-y-1 mb-4">
-              <label htmlFor="key-name" className="text-[13px] font-medium text-text-accent">
+              <label htmlFor="key-name" className="text-[16px] mb-1 font-medium text-text-accent">
                 Key name
               </label>
               <input
@@ -234,7 +234,7 @@ function CreateModal({ orgSlug, onCreated, onClose }: CreateModalProps) {
 
             {/* Optional expiry */}
             <div className="space-y-1 mb-6">
-              <label htmlFor="key-expiry" className="text-[13px] font-medium text-text-accent">
+              <label htmlFor="key-expiry" className="text-[16px] mb-1 font-medium text-text-accent">
                 Expiration{" "}
                 <span className="text-text-accent/60 font-normal">(optional)</span>
               </label>
@@ -247,7 +247,7 @@ function CreateModal({ orgSlug, onCreated, onClose }: CreateModalProps) {
                 min={minExpiryDate}
                 className="w-full bg-white/60 rounded-xl px-4 py-2.5 text-[15px] border border-black/8 outline-none focus:ring-2 focus:ring-blue/30 transition-all disabled:opacity-60"
               />
-              <p className="text-[12px] text-text-accent pl-1">
+              <p className="text-[14px] text-text-accent pl-1">
                 Leave blank for a key that never expires.
               </p>
             </div>
@@ -263,7 +263,7 @@ function CreateModal({ orgSlug, onCreated, onClose }: CreateModalProps) {
                 type="button"
                 onClick={onClose}
                 disabled={isPending}
-                className="px-4 py-2 rounded-full text-[13px] font-medium bg-accent hover:bg-accent/70 transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-full text-[16px] font-medium bg-accent hover:bg-accent/70 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -271,7 +271,7 @@ function CreateModal({ orgSlug, onCreated, onClose }: CreateModalProps) {
                 type="button"
                 onClick={handleCreate}
                 disabled={isPending}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all disabled:opacity-60"
+                className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[16px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all disabled:opacity-60"
               >
                 {isPending ? (
                   <>
@@ -329,7 +329,7 @@ function CreateModal({ orgSlug, onCreated, onClose }: CreateModalProps) {
             {/* Warning */}
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 mb-5">
               <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0" />
-              <p className="text-[12px] text-amber-800 leading-relaxed">
+              <p className="text-[14px] text-amber-800 leading-relaxed">
                 This secret will <strong>not</strong> be shown again. Store it
                 somewhere secure — a password manager or secrets manager.
               </p>
@@ -338,7 +338,7 @@ function CreateModal({ orgSlug, onCreated, onClose }: CreateModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-2.5 rounded-full text-[13px] font-medium bg-blue text-white hover:bg-blue/90 transition-colors"
+              className="w-full py-[12px] rounded-full text-[16px] font-medium bg-blue text-white hover:bg-blue/90 transition-colors"
             >
               Done
             </button>
@@ -416,7 +416,7 @@ function RevokeDialog({ keyName, onConfirm, onCancel, isPending }: RevokeDialogP
             type="button"
             onClick={onCancel}
             disabled={isPending}
-            className="px-4 py-2 rounded-full text-[13px] font-medium bg-accent hover:bg-accent/70 transition-colors disabled:opacity-50"
+            className="px-4 py-[12px] rounded-full text-[16px] font-medium bg-accent hover:bg-accent/70 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
@@ -424,7 +424,7 @@ function RevokeDialog({ keyName, onConfirm, onCancel, isPending }: RevokeDialogP
             type="button"
             onClick={onConfirm}
             disabled={isPending}
-            className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-medium bg-red-500 text-white hover:bg-red-600 active:scale-[0.97] transition-all disabled:opacity-60"
+            className="flex items-center gap-1.5 px-5 py-[12px] rounded-full text-[16px] font-medium bg-red-500 text-white hover:bg-red-600 active:scale-[0.97] transition-all disabled:opacity-60"
           >
             {isPending ? (
               <>
@@ -670,11 +670,11 @@ export function DevelopersPage({
               <button
                 type="button"
                 onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all"
+                className="flex items-center gap-2 px-[24px] py-[12px] rounded-full text-[16px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all"
               >
                 <Plus size={14} />
                 Create API key
-              </button>
+              </button> 
             </div>
           )}
         </SettingsSection>

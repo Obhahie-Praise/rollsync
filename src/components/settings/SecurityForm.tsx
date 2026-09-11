@@ -77,7 +77,7 @@ export function PasswordForm() {
       <div className="space-y-3 max-w-[400px]">
         {/* Current password */}
         <div className="space-y-1">
-          <label htmlFor="current-pw" className="text-[13px] font-medium text-text-accent">
+          <label htmlFor="current-pw" className="text-[16px] font-medium text-text-accent">
             Current password
           </label>
           <div className="relative">
@@ -92,7 +92,7 @@ export function PasswordForm() {
               disabled={isDisabled}
               placeholder="••••••••"
               className={[
-                "w-full bg-white/60 rounded-xl px-4 py-2.5 pr-10 text-[15px]",
+                "w-full bg-white/60 rounded-xl px-4 py-2.5 pr-10 text-[20px]",
                 "border border-black/8 outline-none focus:ring-2 focus:ring-blue/30 transition-all",
                 "placeholder:text-text-accent/40 disabled:opacity-60",
                 errors.current ? "ring-2 ring-red-300" : "",
@@ -114,7 +114,7 @@ export function PasswordForm() {
 
         {/* New password */}
         <div className="space-y-1">
-          <label htmlFor="new-pw" className="text-[13px] font-medium text-text-accent">
+          <label htmlFor="new-pw" className="text-[16px] font-medium text-text-accent">
             New password
           </label>
           <div className="relative">
@@ -129,7 +129,7 @@ export function PasswordForm() {
               disabled={isDisabled}
               placeholder="••••••••"
               className={[
-                "w-full bg-white/60 rounded-xl px-4 py-2.5 pr-10 text-[15px]",
+                "w-full bg-white/60 rounded-xl px-4 py-2.5 pr-10 text-[20px]",
                 "border border-black/8 outline-none focus:ring-2 focus:ring-blue/30 transition-all",
                 "placeholder:text-text-accent/40 disabled:opacity-60",
                 errors.new ? "ring-2 ring-red-300" : "",
@@ -151,7 +151,7 @@ export function PasswordForm() {
 
         {/* Confirm password */}
         <div className="space-y-1">
-          <label htmlFor="confirm-pw" className="text-[13px] font-medium text-text-accent">
+          <label htmlFor="confirm-pw" className="text-[16px] font-medium text-text-accent">
             Confirm new password
           </label>
           <input
@@ -165,7 +165,7 @@ export function PasswordForm() {
             disabled={isDisabled}
             placeholder="••••••••"
             className={[
-              "w-full bg-white/60 rounded-xl px-4 py-2.5 text-[15px]",
+              "w-full bg-white/60 rounded-xl px-4 py-2.5 text-[20px]",
               "border border-black/8 outline-none focus:ring-2 focus:ring-blue/30 transition-all",
               "placeholder:text-text-accent/40 disabled:opacity-60",
               errors.confirm ? "ring-2 ring-red-300" : "",
@@ -194,7 +194,7 @@ export function PasswordForm() {
           type="button"
           onClick={handleSave}
           disabled={isDisabled || (!currentPw && !newPw && !confirmPw)}
-          className="flex items-center gap-1.5 px-5 py-2.5 rounded-full text-[13px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all disabled:opacity-50"
+          className="flex items-center gap-1.5 px-[24px] py-[12px] rounded-full text-[16px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all disabled:opacity-50"
         >
           {saving ? (
             <>
@@ -258,9 +258,9 @@ function SessionItem({ session, onRevoke, revoking }: SessionItemProps) {
         <div className="text-text-accent mt-0.5 shrink-0">{icon}</div>
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-[14px] font-medium">{label}</p>
+            <p className="text-[20px] font-medium">{label}</p>
             {session.isCurrent && (
-              <span className="text-[11px] font-medium text-blue bg-blue/10 px-2 py-0.5 rounded-full">
+              <span className="text-[13px] font-medium text-blue bg-blue/10 px-2 py-0.5 rounded-full">
                 Current
               </span>
             )}

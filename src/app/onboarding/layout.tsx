@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { getOnboardingRedirect } from "@/lib/onboarding-actions";
+import { prisma } from "@/lib/prisma";
 
 export default async function OnboardingLayout({
   children,
@@ -14,15 +14,25 @@ export default async function OnboardingLayout({
     redirect("/");
   }
 
-  // If the user has already finished onboarding, send them to their dashboard.
-  // getOnboardingRedirect returns null for a fresh user (let them proceed),
-  // or a path string for completed / in-progress users.
-  // We only redirect here for the completed case — step-level redirects are
-  // handled per-page in the client components.
-  const destination = await getOnboardingRedirect();
-  if (destination && destination.includes("/overview")) {
-    // Already completed onboarding — go straight to dashboard
-    redirect(destination);
+  // Check if the user already has memberships — if they completed onboarding,
+  // route them appropriately instead of letting them go through onboarding again.
+  const [progress, memberships] = await Promise.all([
+    prisma.onboardingProgress.findUnique({
+      where: { userId: session.user.id },
+    }),
+    prisma.membership.findMany({
+      where: { userId: session.user.id },
+      select: { organization: { select: { slug: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  if (memberships.length > 0 && progress?.completed) {
+    // Completed onboarding already — route to the right place
+    if (memberships.length === 1) {
+      redirect(`/${memberships[0].organization.slug}/overview`);
+    }
+    redirect("/org-select");
   }
 
   return <>{children}</>;

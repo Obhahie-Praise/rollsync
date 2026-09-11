@@ -90,22 +90,26 @@ export default function OnboardingOnePage() {
 
   return (
     <div className="">
-      <div className="flex items-center justify-between p-[40px]">
+      {/* Header — reduced padding on mobile */}
+      <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-6 lg:px-10 lg:py-[40px]">
         <h1 className="logo-font text-[40px] font-semibold bg-clip-text text-transparent bg-linear-to-b from-[#7898FF] to-[#0926CF] mb-6">
           Roll SYNC
         </h1>
-        <p className="text-[24px]">
+        <p className="text-[18px] sm:text-[24px]">
           Step 1 <span className="font-medium text-text-accent">of 3</span>
         </p>
       </div>
 
-      <div className="w-full pt-40 flex items-center justify-center">
-        <div className="space-y-[48px]">
-          <h2 className="text-[64px] font-medium text-center">
+      {/* Main content — reduced top padding on mobile */}
+      <div className="w-full pt-10 sm:pt-24 lg:pt-40 flex items-center justify-center px-4 sm:px-8">
+        <div className="space-y-[48px] w-full max-w-[1200px]">
+          {/* Heading — scales up from mobile to desktop */}
+          <h2 className="text-[36px] sm:text-[48px] lg:text-[64px] font-medium text-center">
             What are you using Roll SYNC for?
           </h2>
 
-          <div className="flex flex-row gap-[24px] max-w-[1200px]">
+          {/* Cards — stack vertically on mobile, row on sm+ */}
+          <div className="flex flex-col sm:flex-row gap-[16px] sm:gap-[24px]">
             {purpose.map((item) => {
               const isSelected = selected === item.value;
               return (
@@ -117,16 +121,19 @@ export default function OnboardingOnePage() {
                     setError("");
                   }}
                   className={[
-                    "p-[32px] rounded-[30px] text-left transition-all duration-150 outline-none",
+                    "p-5 sm:p-[24px] lg:p-[32px] rounded-[30px] text-left transition-all duration-150 outline-none w-full",
                     "focus-visible:ring-2 focus-visible:ring-blue/60",
                     isSelected
                       ? "bg-[#43A5F5] text-white shadow-md scale-[1.02]"
                       : "bg-accent hover:bg-accent/80 active:scale-[0.98]",
                   ].join(" ")}
                 >
-                  <div className="space-y-[24px]">
+                  <div className="space-y-[16px] sm:space-y-[24px]">
                     <div className="flex items-center justify-between">
-                      <p className="text-[32px] font-medium">{item.title}</p>
+                      {/* Card title — scales up from mobile to desktop */}
+                      <p className="text-[22px] sm:text-[28px] lg:text-[32px] font-medium">
+                        {item.title}
+                      </p>
                       <Image
                         src={item.icon}
                         alt={item.title}
@@ -135,9 +142,10 @@ export default function OnboardingOnePage() {
                         className={isSelected ? "brightness-0 invert" : ""}
                       />
                     </div>
+                    {/* Description — scales up from mobile to desktop */}
                     <p
                       className={[
-                        "text-[24px] font-medium",
+                        "text-[15px] sm:text-[18px] lg:text-[24px] font-medium",
                         isSelected ? "text-white/80" : "text-text-accent",
                       ].join(" ")}
                     >

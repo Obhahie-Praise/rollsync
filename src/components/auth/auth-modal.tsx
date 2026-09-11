@@ -13,13 +13,17 @@ interface AuthModalProps {
   initialMode?: AuthMode;
 }
 
-export function AuthModal({ isOpen, onClose, initialMode = "sign-up" }: AuthModalProps) {
+// Inner modal content — keyed on initialMode so state resets when mode changes
+function AuthModalContent({
+  isOpen,
+  onClose,
+  initialMode = "sign-up",
+}: AuthModalProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
 
+  // Handle body scroll lock
   useEffect(() => {
     if (isOpen) {
-      // eslint-disable-next-line
-      setMode(initialMode);
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -27,8 +31,9 @@ export function AuthModal({ isOpen, onClose, initialMode = "sign-up" }: AuthModa
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, initialMode]);
+  }, [isOpen]);
 
+  // Handle Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -56,7 +61,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "sign-up" }: AuthModa
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="relative w-full max-w-[460px] bg-[#f4f7fc] rounded-[24px] shadow-2xl overflow-hidden flex flex-col"
+            className="relative w-full max-w-[480px] bg-[#f4f7fc] rounded-[24px] shadow-2xl overflow-hidden flex flex-col"
             role="dialog"
             aria-modal="true"
           >
@@ -78,12 +83,17 @@ export function AuthModal({ isOpen, onClose, initialMode = "sign-up" }: AuthModa
               </div>
 
               <AuthForm mode={mode} setMode={setMode} />
-              
+
               <div className="mt-8 text-center">
                 <p className="text-[13px] text-gray-500 font-medium">
                   By using Roll SYNC, you agree to our{" "}
-                  <a href="#" className="text-gray-900 underline hover:no-underline">Terms of Service</a> &{" "}
-                  <a href="#" className="text-gray-900 underline hover:no-underline">Privacy</a>
+                  <a href="#" className="text-gray-900 underline hover:no-underline">
+                    Terms of Service
+                  </a>{" "}
+                  &{" "}
+                  <a href="#" className="text-gray-900 underline hover:no-underline">
+                    Privacy
+                  </a>
                 </p>
               </div>
             </div>
@@ -91,5 +101,18 @@ export function AuthModal({ isOpen, onClose, initialMode = "sign-up" }: AuthModa
         </div>
       )}
     </AnimatePresence>
+  );
+}
+
+export function AuthModal({ isOpen, onClose, initialMode = "sign-up" }: AuthModalProps) {
+  // Using key forces a fresh mount (and fresh useState) whenever initialMode changes,
+  // which avoids the anti-pattern of calling setState inside a useEffect.
+  return (
+    <AuthModalContent
+      key={initialMode}
+      isOpen={isOpen}
+      onClose={onClose}
+      initialMode={initialMode}
+    />
   );
 }

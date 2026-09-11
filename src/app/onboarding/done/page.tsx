@@ -45,7 +45,7 @@ export default function OnboardingDonePage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between p-[40px]">
+      <div className="flex items-center justify-between p-4 sm:p-8 lg:p-[40px]">
         <h1 className="logo-font text-[40px] font-semibold bg-clip-text text-transparent bg-linear-to-b from-[#7898FF] to-[#0926CF] mb-6">
           Roll SYNC
         </h1>
@@ -53,10 +53,21 @@ export default function OnboardingDonePage() {
       </div>
 
       <div className="flex flex-col items-center justify-center gap-4 pt-20">
-        <div className="bg-blue rounded-full p-15">
-          <Check size={150} strokeWidth={2} color="#fff" />
+        <div className="bg-blue rounded-full p-6 sm:p-10">
+          <Check
+            size={80}
+            className="sm:hidden"
+            strokeWidth={2}
+            color="#fff"
+          />
+          <Check
+            size={120}
+            className="hidden sm:block"
+            strokeWidth={2}
+            color="#fff"
+          />
         </div>
-        <p className="text-[64px] font-medium text-center pt-4">
+        <p className="text-[36px] sm:text-[56px] lg:text-[64px] font-medium text-center pt-4">
           All done setting up
         </p>
       </div>
@@ -72,7 +83,7 @@ export default function OnboardingDonePage() {
           type="button"
           onClick={handleEnter}
           disabled={loading}
-          className="flex items-center gap-2 bg-blue rounded-full px-[24px] py-[12px] text-white font-medium text-[18px] w-fit mx-auto mt-[124px] hover:bg-blue/90 transition-colors disabled:opacity-70"
+          className="flex items-center gap-2 bg-blue rounded-full px-[24px] py-[12px] text-white font-medium text-[18px] w-fit mx-auto mt-12 sm:mt-20 lg:mt-[124px] hover:bg-blue/90 transition-colors disabled:opacity-70"
         >
           {loading ? (
             <Loader2 size={18} className="animate-spin" />

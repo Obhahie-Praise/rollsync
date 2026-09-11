@@ -1,12 +1,11 @@
+import HeroSection from '@/sections/hero'
 import Navbar from '@/sections/navbar'
-import React from 'react'
 
-const Landingpage = () => {
+export default function LandingPage() {
   return (
-    <div className=''>
+    <div>
       <Navbar />
+      <HeroSection />
     </div>
   )
 }
-
-export default Landingpage

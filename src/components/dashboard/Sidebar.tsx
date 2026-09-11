@@ -22,9 +22,9 @@ interface SidebarProps {
   memberships: OrgItem[];
 }
 
-/** Truncate display name: if over 10 chars, show first name only */
+/** Truncate display name: if over 14 chars, show first name only */
 function displayName(name: string): string {
-  if (name.length <= 10) return name;
+  if (name.length <= 14) return name;
   return name.split(" ")[0] ?? name;
 }
 
@@ -42,11 +42,7 @@ export default function Sidebar({
   const sidebarRef = useRef<HTMLElement>(null);
 
   // ── Dropdown state ───────────────────────────────────────────────────────
-  // Track which nav groups are manually opened. Auto-open if currently on
-  // a matching route.
-  const [manualOpenGroups, setManualOpenGroups] = useState<
-    Record<string, boolean>
-  >({});
+  const [manualOpenGroups, setManualOpenGroups] = useState<Record<string, boolean>>({});
 
   function isGroupOpen(label: string, matchSegments: string[]): boolean {
     const onRoute = matchSegments.some((seg) =>
@@ -118,48 +114,48 @@ export default function Sidebar({
             aria-hidden="true"
           />
 
-          {/* Sidebar panel */}
+          {/* Sidebar panel — full-height drawer from the right */}
           <motion.aside
             ref={sidebarRef}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 40 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="fixed top-1/2 -translate-y-1/2 right-10 z-50 h-[95vh] w-[350px] bg-background rounded-[30px] p-[20px] shadow-[0px_3px_30px_0_#D3D3D3] flex flex-col justify-between"
+            initial={prefersReduced ? { opacity: 0 } : { opacity: 0, x: "100%" }}
+            animate={prefersReduced ? { opacity: 1 } : { opacity: 1, x: 0 }}
+            exit={prefersReduced ? { opacity: 0 } : { opacity: 0, x: "100%" }}
+            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-[320px] sm:max-w-[360px] bg-background shadow-[-4px_0_40px_rgba(0,0,0,0.08)] flex flex-col overflow-y-auto"
             role="navigation"
             aria-label="Workspace sidebar"
           >
             {/* Top section */}
-            <div className="space-y-[24px]">
+            <div className="flex flex-col gap-5 p-5 flex-1">
               {/* User row + close */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-[12px] mb-[10px]">
-                  <div className="bg-dark-accent p-3 rounded-full text-white shrink-0 overflow-hidden w-[52px] h-[52px] flex items-center justify-center">
+                <div className="flex items-center gap-3">
+                  <div className="bg-dark-accent rounded-full text-white shrink-0 overflow-hidden w-[46px] h-[46px] flex items-center justify-center">
                     {user.image ? (
                       <Image
                         src={user.image}
                         alt={user.name}
-                        width={52}
-                        height={52}
+                        width={46}
+                        height={46}
                         className="rounded-full object-cover w-full h-full"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
                     ) : (
-                      <UserRound size={26} />
+                      <UserRound size={22} />
                     )}
                   </div>
-                  <p className="font-medium text-[24px]">
+                  <p className="font-semibold text-[18px] sm:text-[20px]">
                     {displayName(user.name)}
                   </p>
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-2.5 text-text-accent rounded-full shadow-[0px_3px_30px_0_#D3D3D3] hover:bg-accent transition-colors focus-visible:outline-2 focus-visible:outline-blue/50"
+                  className="p-2 text-text-accent rounded-full hover:bg-accent transition-colors focus-visible:outline-2 focus-visible:outline-blue/50"
                   aria-label="Close sidebar"
                 >
-                  <X size={28} />
+                  <X size={22} />
                 </button>
               </div>
 
@@ -167,13 +163,11 @@ export default function Sidebar({
               <OrgSwitcher currentOrg={currentOrg} memberships={memberships} />
 
               {/* Nav links */}
-              <nav className="space-y-[4px]">
+              <nav className="space-y-1" aria-label="Main navigation">
                 {navLinks.map((link) => {
                   if (link.children) {
                     const childSegments = link.children.map((c) => c.matchSegment);
-                    const anyChildActive = childSegments.some((seg) =>
-                      isActive(seg)
-                    );
+                    const anyChildActive = childSegments.some((seg) => isActive(seg));
                     const groupOpen = isGroupOpen(link.label, childSegments);
 
                     return (
@@ -183,20 +177,17 @@ export default function Sidebar({
                           type="button"
                           onClick={() => toggleGroup(link.label)}
                           className={[
-                            "w-full flex items-center justify-between gap-[12px] px-[24px] py-[12px] rounded-full transition-colors",
+                            "w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-colors",
                             anyChildActive
                               ? "bg-blue text-white"
                               : "hover:bg-accent",
                           ].join(" ")}
                           aria-expanded={groupOpen}
                         >
-                          <div className="flex items-center gap-[12px]">
-                            <link.icon size={28} strokeWidth={1.4} />
-                            <p className="text-[24px] font-medium">
-                              {link.label}
-                            </p>
+                          <div className="flex items-center gap-3">
+                            <link.icon size={22} strokeWidth={1.5} />
+                            <p className="text-[17px] font-medium">{link.label}</p>
                           </div>
-                          {/* Rotating chevron */}
                           <motion.div
                             animate={{ rotate: groupOpen ? 180 : 0 }}
                             transition={
@@ -206,11 +197,9 @@ export default function Sidebar({
                             }
                           >
                             <ChevronDown
-                              size={20}
-                              strokeWidth={1.8}
-                              className={
-                                anyChildActive ? "text-white" : "text-text-accent"
-                              }
+                              size={17}
+                              strokeWidth={2}
+                              className={anyChildActive ? "text-white" : "text-text-accent"}
                             />
                           </motion.div>
                         </button>
@@ -231,10 +220,10 @@ export default function Sidebar({
                                   ? { opacity: 1, height: "auto" }
                                   : { opacity: 0, height: 0 }
                               }
-                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                              transition={{ duration: 0.18, ease: "easeInOut" }}
                               style={{ overflow: "hidden" }}
                             >
-                              <div className="ml-[52px] space-y-[2px] pt-[8px] pb-[2px]">
+                              <div className="ml-[46px] space-y-0.5 pt-1 pb-1">
                                 {link.children.map((child) => {
                                   const active = isActive(child.matchSegment);
                                   return (
@@ -243,9 +232,9 @@ export default function Sidebar({
                                       href={child.href(slug)}
                                       onClick={onClose}
                                       className={[
-                                        "block px-[16px] py-[8px] rounded-full text-[18px] font-medium transition-colors",
+                                        "block px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
                                         active
-                                          ? "bg-accent text-black"
+                                          ? "bg-accent text-foreground"
                                           : "hover:bg-input",
                                       ].join(" ")}
                                     >
@@ -269,20 +258,20 @@ export default function Sidebar({
                       href={link.href!(slug)}
                       onClick={onClose}
                       className={[
-                        "flex items-center gap-[12px] px-[24px] py-[12px] rounded-2xl transition-colors",
+                        "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
                         active ? "bg-blue text-white" : "hover:bg-accent",
                       ].join(" ")}
                     >
-                      <link.icon size={28} strokeWidth={1.4} />
-                      <p className="text-[24px] font-medium">{link.label}</p>
+                      <link.icon size={22} strokeWidth={1.5} />
+                      <p className="text-[17px] font-medium">{link.label}</p>
                     </Link>
                   );
                 })}
               </nav>
             </div>
 
-            {/* Bottom section */}
-            <div>
+            {/* Bottom section — pinned to bottom */}
+            <div className="p-5 border-t border-black/5 space-y-1">
               {bottomLinks.map((link) => {
                 const active = isActive(link.matchSegment);
                 return (
@@ -291,12 +280,12 @@ export default function Sidebar({
                     href={link.href(slug)}
                     onClick={onClose}
                     className={[
-                      "flex items-center gap-[12px] px-[24px] py-[12px] rounded-2xl transition-colors",
+                      "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
                       active ? "bg-blue text-white" : "hover:bg-accent",
                     ].join(" ")}
                   >
-                    <link.icon size={28} strokeWidth={1.4} />
-                    <p className="text-[24px] font-medium">{link.label}</p>
+                    <link.icon size={22} strokeWidth={1.5} />
+                    <p className="text-[17px] font-medium">{link.label}</p>
                   </Link>
                 );
               })}
@@ -304,21 +293,14 @@ export default function Sidebar({
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="w-full flex items-center gap-[12px] px-[24px] py-[12px] rounded-2xl hover:bg-accent transition-colors disabled:opacity-60"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-accent transition-colors disabled:opacity-60"
               >
                 {loggingOut ? (
-                  <Loader2
-                    size={28}
-                    className="text-red-500 animate-spin"
-                  />
+                  <Loader2 size={22} className="text-red-500 animate-spin" />
                 ) : (
-                  <LogOut
-                    size={28}
-                    strokeWidth={1.4}
-                    className="text-red-500"
-                  />
+                  <LogOut size={22} strokeWidth={1.5} className="text-red-500" />
                 )}
-                <p className="text-[24px] font-medium">
+                <p className="text-[17px] font-medium">
                   {loggingOut ? "Logging out…" : "Logout"}
                 </p>
               </button>

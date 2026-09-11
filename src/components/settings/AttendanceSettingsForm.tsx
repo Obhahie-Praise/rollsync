@@ -72,8 +72,8 @@ function MethodToggle({
         />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[15px] font-medium">{method.label}</p>
-        <p className="text-[13px] text-text-accent mt-0.5">{method.description}</p>
+        <p className="text-[20px] font-medium">{method.label}</p>
+        <p className="text-[16px] text-text-accent mt-1">{method.description}</p>
       </div>
     </label>
   );
@@ -153,13 +153,13 @@ export function AttendanceSettingsForm({
         description="The Roll SYNC mobile app allows attendees to check in even without an internet connection. Check-ins sync automatically when connectivity is restored."
       >
         <div className="p-4 rounded-xl bg-white/40 border border-black/8">
-          <p className="text-[14px] font-medium">Offline check-in</p>
-          <p className="text-[13px] text-text-accent mt-1">
+          <p className="text-[20px] font-medium">Offline check-in</p>
+          <p className="text-[16px] text-text-accent mt-2">
             When the mobile method is enabled above, attendees can check in
             offline. Their attendance is stored locally and synced when
             connectivity returns.
           </p>
-          <p className="text-[12px] text-blue mt-2 font-medium">
+          <p className="text-[12px] text-blue mt-3 font-medium">
             {methods.includes("mobile")
               ? "✓ Enabled via Mobile Check-in"
               : "Enable Mobile Check-in above to allow offline attendance."}

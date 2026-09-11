@@ -122,6 +122,8 @@ model Organization {
   rooms               Room[]
   timetableEntries    TimetableEntry[]
   timetableExceptions TimetableException[]
+  attendanceSessions  AttendanceSession[]
+  attendanceRecords   AttendanceRecord[]
 
   @@map("organization")
 }
@@ -247,6 +249,10 @@ model Person {
   timetableAsTeacher   TimetableEntry[]         @relation("TimetableTeacher")
   // Timetable exceptions where this person is a substitute
   timetableAsSubstitute TimetableException[]    @relation("TimetableSubstitute")
+  // Attendance sessions where this person is the teacher
+  attendanceAsTeacher  AttendanceSession[]      @relation("AttendanceTeacher")
+  // Attendance records (as a student/attendee)
+  attendanceRecords    AttendanceRecord[]
 
   // An org identifier must be unique within the organization (when set)
   @@unique([organizationId, orgIdentifier])
@@ -280,6 +286,7 @@ model Class {
   organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberships        ClassMembership[]
   timetableEntries   TimetableEntry[]
+  attendanceSessions AttendanceSession[]
 
   // Names must be unique within an org
   @@unique([organizationId, name])
@@ -327,6 +334,7 @@ model Subject {
 
   organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   timetableEntries TimetableEntry[]
+  attendanceSessions AttendanceSession[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -393,6 +401,7 @@ model TimetableEntry {
   subject       Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   room          Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
   exceptions    TimetableException[]
+  attendanceSessions AttendanceSession[]
 
   @@index([organizationId])
   @@index([teacherPersonId])
@@ -440,6 +449,97 @@ model TimetableException {
   @@index([organizationId])
   @@index([timetableEntryId])
   @@map("timetable_exception")
+}
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
+//
+// AttendanceSession: records that a specific class actually happened on a day.
+// Created by the teacher (or an admin) when they "sign in" to a class.
+// Links back to the TimetableEntry so we can compare scheduled vs actual.
+//
+// One session per (timetableEntryId, date). Prevents duplicates.
+
+enum ArrivalStatus {
+  EARLY       // teacher arrived before scheduled start
+  ON_TIME     // within the grace window
+  LATE        // after scheduled start + grace
+  VERY_LATE   // significantly late
+}
+
+enum SessionStatus {
+  ACTIVE      // in progress
+  COMPLETED   // roll call saved/submitted
+  CANCELLED   // session was cancelled after sign-in
+}
+
+model AttendanceSession {
+  id               String        @id @default(cuid())
+  organizationId   String
+  timetableEntryId String
+  // The teacher Person who signed in
+  teacherPersonId  String
+  classId          String
+  subjectId        String
+  // The calendar date this session covers (date only, no time component)
+  sessionDate      DateTime
+  // Actual check-in timestamp (server-set, never trusted from client)
+  checkinAt        DateTime      @default(now())
+  arrivalStatus    ArrivalStatus
+  status           SessionStatus @default(ACTIVE)
+  // Optional override room (if a room change occurred)
+  roomId           String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  timetableEntry TimetableEntry       @relation(fields: [timetableEntryId], references: [id], onDelete: Restrict)
+  teacherPerson  Person               @relation("AttendanceTeacher", fields: [teacherPersonId], references: [id], onDelete: Restrict)
+  class          Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject        Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  records        AttendanceRecord[]
+
+  // One session per timetable entry per calendar date
+  @@unique([timetableEntryId, sessionDate])
+  @@index([organizationId])
+  @@index([teacherPersonId])
+  @@index([classId])
+  @@map("attendance_session")
+}
+
+// AttendanceRecord: one record per student per session.
+// Created/updated during roll call.
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE      // student arrived late
+  EXCUSED   // absent with an accepted excuse
+}
+
+model AttendanceRecord {
+  id                  String           @id @default(cuid())
+  organizationId      String
+  attendanceSessionId String
+  // The student Person being tracked
+  personId            String
+  status              AttendanceStatus
+  // Optional note (e.g. reason for absence/late)
+  note                String?
+  // Server-set timestamp of when this record was last saved
+  recordedAt          DateTime         @default(now())
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attendanceSession AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  person            Person            @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  // One record per student per session
+  @@unique([attendanceSessionId, personId])
+  @@index([organizationId])
+  @@index([attendanceSessionId])
+  @@index([personId])
+  @@map("attendance_record")
 }
 
 // ─── Onboarding progress ──────────────────────────────────────────────────────

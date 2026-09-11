@@ -60,7 +60,7 @@ export function SettingsRow({
       >
         <p className="text-[20px] font-medium text-foreground">{label}</p>
         {description && (
-          <p className="text-[16px] text-text-accent mt-0.5">{description}</p>
+          <p className="text-[16px] text-text-accent mt-1">{description}</p>
         )}
       </LabelEl>
       <div className="flex-1 min-w-0">{children}</div>

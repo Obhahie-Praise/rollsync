@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { AuthMode } from "./auth-modal";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { getPostAuthDestination } from "@/lib/post-auth-redirect";
+import type { AuthMode } from "./auth-modal";
 
 interface AuthFormProps {
   mode: AuthMode;
@@ -16,7 +17,7 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -26,14 +27,15 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
     setLoading(true);
     setError("");
     try {
-      // Better auth handles oauth
       await authClient.signIn.social({
         provider: "google",
+        // Google OAuth completes via redirect; the callbackURL
+        // lands the user at /onboarding which handles routing correctly.
         callbackURL: "/onboarding",
       });
     } catch (err: unknown) {
-      const error = err as Error;
-      setError(error?.message || "An error occurred");
+      const e = err as Error;
+      setError(e?.message || "An error occurred");
       setLoading(false);
     }
   };
@@ -45,24 +47,27 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
 
     try {
       if (mode === "sign-up") {
-        const { error } = await authClient.signUp.email({
+        const { error: signUpError } = await authClient.signUp.email({
           email,
           password,
           name: `${firstName} ${lastName}`.trim(),
         });
-        if (error) throw error;
+        if (signUpError) throw signUpError;
+        // New user — always needs onboarding
         router.push("/onboarding");
       } else {
-        const { error } = await authClient.signIn.email({
+        const { error: signInError } = await authClient.signIn.email({
           email,
           password,
         });
-        if (error) throw error;
-        router.push("/onboarding");
+        if (signInError) throw signInError;
+        // Existing user — determine where to send them
+        const destination = await getPostAuthDestination();
+        router.push(destination);
       }
     } catch (err: unknown) {
-      const error = err as { message?: string; error?: { message?: string } };
-      setError(error?.message || error?.error?.message || "An error occurred");
+      const e = err as { message?: string; error?: { message?: string } };
+      setError(e?.message || e?.error?.message || "An error occurred");
       setLoading(false);
     }
   };
@@ -75,7 +80,7 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
         disabled={loading}
         className="w-full bg-[#0d34db] hover:bg-[#0b2bb5] text-white rounded-full py-[14px] px-6 flex items-center justify-center font-medium text-[16px] transition-colors disabled:opacity-70"
       >
-        <svg className="w-[18px] h-[18px] mr-3" viewBox="0 0 24 24" fill="currentColor">
+        <svg className="w-[18px] h-[18px] mr-3 shrink-0" viewBox="0 0 24 24" fill="currentColor">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
           <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
           <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -99,7 +104,7 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               required
-              className="flex-1 bg-gray-200/60 border-none rounded-full px-6 py-4 text-[15px] outline-none focus:ring-2 focus:ring-[#0d34db]/30 transition-all placeholder:text-gray-400"
+              className="flex-1 bg-gray-200/60 border-none rounded-full px-6 py-4 text-[15px] outline-none focus:ring-2 focus:ring-[#0d34db]/30 transition-all placeholder:text-gray-400 w-full"
             />
             <input
               type="text"
@@ -107,7 +112,7 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               required
-              className="flex-1 bg-gray-200/60 border-none rounded-full px-6 py-4 text-[15px] outline-none focus:ring-2 focus:ring-[#0d34db]/30 transition-all placeholder:text-gray-400"
+              className="flex-1 bg-gray-200/60 border-none rounded-full px-6 py-4 text-[15px] outline-none focus:ring-2 focus:ring-[#0d34db]/30 transition-all placeholder:text-gray-400 w-full"
             />
           </div>
         )}
@@ -155,7 +160,7 @@ export function AuthForm({ mode, setMode }: AuthFormProps) {
           )}
         </button>
       </form>
-      
+
       <div className="mt-6 text-center">
         <button
           type="button"

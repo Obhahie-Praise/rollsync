@@ -33,9 +33,9 @@ function ToggleRow({
   return (
     <div className="flex items-start justify-between gap-6 py-3">
       <div className="flex-1 min-w-0">
-        <p className="text-[15px] font-medium text-foreground">{label}</p>
+        <p className="text-[20px] font-medium text-foreground">{label}</p>
         {description && (
-          <p className="text-[13px] text-text-accent mt-0.5">{description}</p>
+          <p className="text-[16px] text-text-accent mt-1">{description}</p>
         )}
         <AnimatePresence>
           {error && (
@@ -233,7 +233,7 @@ export function NotificationsForm({ initialPrefs }: NotificationsFormProps) {
         description="In-app notification preferences will be available in a future update."
       >
         <div className="p-4 rounded-xl bg-white/40 border border-black/8">
-          <p className="text-[14px] text-text-accent">
+          <p className="text-[16px] text-text-accent">
             In-app notifications are coming soon. You&apos;ll be able to control
             which events appear in your notification feed.
           </p>

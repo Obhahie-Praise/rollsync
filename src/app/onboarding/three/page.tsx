@@ -88,22 +88,26 @@ export default function OnboardingThreePage() {
 
   return (
     <div className="">
-      <div className="flex items-center justify-between p-[40px]">
-        <h1 className="logo-font text-[40px] font-semibold bg-clip-text text-transparent bg-linear-to-b from-[#7898FF] to-[#0926CF] mb-6">
+      {/* Header: responsive padding (mobile: px-5 py-5, md: px-10 py-10) */}
+      <div className="flex items-center justify-between px-5 py-5 md:px-10 md:py-10">
+        <h1 className="logo-font text-[32px] md:text-[40px] font-semibold bg-clip-text text-transparent bg-linear-to-b from-[#7898FF] to-[#0926CF] mb-6">
           Roll SYNC
         </h1>
-        <p className="text-[24px]">
+        <p className="text-[18px] md:text-[24px]">
           Step 3 <span className="font-medium text-text-accent">of 3</span>
         </p>
       </div>
 
-      <div className="w-full pt-40 flex items-center justify-center">
-        <div className="space-y-[48px]">
-          <h2 className="text-[64px] font-medium text-center">
+      {/* Main: reduced top padding on mobile */}
+      <div className="w-full pt-12 md:pt-24 lg:pt-40 flex items-center justify-center px-5">
+        <div className="space-y-[48px] w-full max-w-[600px]">
+          {/* Heading: responsive size */}
+          <h2 className="text-[36px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-medium text-center">
             {terms.methodsHeading}
           </h2>
 
-          <div className="flex flex-col w-fit mx-auto gap-[24px] max-w-[1200px] text-[24px] font-medium">
+          {/* Methods list: text size stays at 24px but has proper padding */}
+          <div className="flex flex-col w-fit mx-auto gap-[24px] text-[20px] sm:text-[24px] font-medium">
             {METHODS.map((method) => {
               const checked = selected.has(method.value);
               return (

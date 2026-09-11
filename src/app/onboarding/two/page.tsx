@@ -86,26 +86,28 @@ export default function OnboardingTwoPage() {
 
   return (
     <div className="">
-      <div className="flex items-center justify-between p-[40px]">
-        <h1 className="logo-font text-[40px] font-semibold bg-clip-text text-transparent bg-linear-to-b from-[#7898FF] to-[#0926CF] mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-5 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+        <h1 className="logo-font text-[28px] sm:text-[36px] lg:text-[40px] font-semibold bg-clip-text text-transparent bg-linear-to-b from-[#7898FF] to-[#0926CF]">
           Roll SYNC
         </h1>
-        <p className="text-[24px]">
+        <p className="text-base sm:text-[20px] lg:text-[24px]">
           Step 2 <span className="font-medium text-text-accent">of 3</span>
         </p>
       </div>
 
-      <div className="w-full pt-40 flex items-center justify-center">
-        <div className="space-y-[48px]">
-          <h2 className="text-[64px] font-medium text-center">
+      {/* Main content */}
+      <div className="w-full pt-10 sm:pt-20 lg:pt-32 flex items-center justify-center px-4 sm:px-6">
+        <div className="space-y-8 sm:space-y-10 lg:space-y-[48px] w-full max-w-[605px]">
+          <h2 className="text-[36px] sm:text-[48px] lg:text-[64px] font-medium text-center">
             {terms.aboutHeading}
           </h2>
 
-          <div className="grid grid-cols-2 gap-[24px] max-w-[605px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-[24px]">
             {/* Name */}
             <label
               htmlFor="entity-name"
-              className="text-[24px] font-medium text-end my-auto"
+              className="text-base sm:text-[20px] lg:text-[24px] font-medium sm:text-end my-auto"
             >
               {terms.nameLabel}:
             </label>
@@ -132,7 +134,7 @@ export default function OnboardingTwoPage() {
             {/* Type / subtype */}
             <label
               htmlFor="entity-type"
-              className="text-[24px] font-medium text-end my-auto"
+              className="text-base sm:text-[20px] lg:text-[24px] font-medium sm:text-end my-auto"
             >
               {terms.typeLabel}:
             </label>
@@ -153,7 +155,7 @@ export default function OnboardingTwoPage() {
             {/* Size */}
             <label
               htmlFor="entity-size"
-              className="text-[24px] font-medium text-end my-auto"
+              className="text-base sm:text-[20px] lg:text-[24px] font-medium sm:text-end my-auto"
             >
               {terms.sizeLabel}:
             </label>
@@ -174,7 +176,7 @@ export default function OnboardingTwoPage() {
             {/* Location */}
             <label
               htmlFor="location"
-              className="text-[24px] font-medium text-end my-auto"
+              className="text-base sm:text-[20px] lg:text-[24px] font-medium sm:text-end my-auto"
             >
               Location:
             </label>
@@ -189,7 +191,7 @@ export default function OnboardingTwoPage() {
             />
 
             {errors.server && (
-              <p className="text-red-500 text-[14px] col-span-2 text-right" role="alert">
+              <p className="text-red-500 text-[14px] col-span-full text-right" role="alert">
                 {errors.server}
               </p>
             )}

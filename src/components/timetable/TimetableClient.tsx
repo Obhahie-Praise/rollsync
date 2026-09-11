@@ -303,7 +303,7 @@ function EntryFormInner({
 
   const fieldCls = (field: string) =>
     [
-      "w-full px-4 py-2.5 rounded-xl border bg-input text-[14px] outline-none transition-colors",
+      "w-full px-[24px] py-[12px] rounded-full border bg-input text-[20px] outline-none transition-colors",
       fieldError === field
         ? "border-red-400"
         : "border-transparent focus:border-blue/50",
@@ -313,7 +313,7 @@ function EntryFormInner({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Teacher */}
       <div>
-        <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+        <label className="block text-[16px] font-medium text-text-accent mb-1.5">
           Teacher <span className="text-red-500">*</span>
         </label>
         <select
@@ -338,7 +338,7 @@ function EntryFormInner({
 
       {/* Class */}
       <div>
-        <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+        <label className="block text-[16px] font-medium text-text-accent mb-1.5">
           Class <span className="text-red-500">*</span>
         </label>
         <select
@@ -359,7 +359,7 @@ function EntryFormInner({
 
       {/* Subject */}
       <div>
-        <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+        <label className="block text-[16px] font-medium text-text-accent mb-1.5">
           Subject <span className="text-red-500">*</span>
         </label>
         <select
@@ -379,7 +379,7 @@ function EntryFormInner({
 
       {/* Room */}
       <div>
-        <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+        <label className="block text-[16px] font-medium text-text-accent mb-1.5">
           Room{" "}
           <span className="text-text-accent/60 font-normal">(optional)</span>
         </label>
@@ -400,7 +400,7 @@ function EntryFormInner({
       {/* Time */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+          <label className="block text-[16px] font-medium text-text-accent mb-1.5">
             Start time <span className="text-red-500">*</span>
           </label>
           <input
@@ -412,7 +412,7 @@ function EntryFormInner({
           />
         </div>
         <div>
-          <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+          <label className="block text-[16px] font-medium text-text-accent mb-1.5">
             End time <span className="text-red-500">*</span>
           </label>
           <input
@@ -427,7 +427,7 @@ function EntryFormInner({
 
       {/* Days of week */}
       <div>
-        <label className="block text-[13px] font-medium text-text-accent mb-2">
+        <label className="block text-[16px] font-medium text-text-accent mb-2">
           Days of week <span className="text-red-500">*</span>
         </label>
         <div className="flex gap-2">
@@ -452,7 +452,7 @@ function EntryFormInner({
       {/* Effective dates */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+          <label className="block text-[16px] font-medium text-text-accent mb-1.5">
             Effective from <span className="text-red-500">*</span>
           </label>
           <input
@@ -464,7 +464,7 @@ function EntryFormInner({
           />
         </div>
         <div>
-          <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+          <label className="block text-[16px] font-medium text-text-accent mb-1.5">
             Effective to{" "}
             <span className="text-text-accent/60 font-normal">(optional)</span>
           </label>
@@ -479,7 +479,7 @@ function EntryFormInner({
 
       {/* Period label */}
       <div>
-        <label className="block text-[13px] font-medium text-text-accent mb-1.5">
+        <label className="block text-[16px] font-medium text-text-accent mb-1.5">
           Period label{" "}
           <span className="text-text-accent/60 font-normal">(optional)</span>
         </label>
@@ -576,7 +576,7 @@ function EntryFormModal({
             className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-background rounded-[24px] shadow-[0px_8px_40px_0_rgba(0,0,0,0.12)] p-8 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-[22px] font-medium">
+              <h2 className="text-[24px] font-medium">
                 {editing ? "Edit entry" : "Add timetable entry"}
               </h2>
               <button
