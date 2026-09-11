@@ -29,7 +29,7 @@ export default function Header({ onSearchOpen, onSidebarOpen, userImage }: Heade
       <button
         type="button"
         onClick={onSearchOpen}
-        className="hidden sm:flex items-center justify-between flex-1 max-w-[300px] px-4 py-3 bg-accent rounded-full shadow-[0px_3px_20px_0_#D3D3D3] hover:bg-accent/80 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-blue/50"
+        className="hidden sm:flex items-center justify-between flex-1 max-w-[300px] px-[24px] py-3 bg-accent rounded-full shadow-[0px_3px_20px_0_#D3D3D3] hover:bg-accent/80 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-blue/50"
         aria-label="Open search"
       >
         <div className="flex items-center gap-2">

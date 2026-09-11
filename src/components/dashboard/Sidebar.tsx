@@ -163,7 +163,7 @@ export default function Sidebar({
               <OrgSwitcher currentOrg={currentOrg} memberships={memberships} />
 
               {/* Nav links */}
-              <nav className="space-y-1" aria-label="Main navigation">
+              <nav className="space-y-2" aria-label="Main navigation">
                 {navLinks.map((link) => {
                   if (link.children) {
                     const childSegments = link.children.map((c) => c.matchSegment);
@@ -258,7 +258,7 @@ export default function Sidebar({
                       href={link.href!(slug)}
                       onClick={onClose}
                       className={[
-                        "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
+                        "flex items-center gap-3 px-[24px] py-3 rounded-full transition-colors",
                         active ? "bg-blue text-white" : "hover:bg-accent",
                       ].join(" ")}
                     >
@@ -280,7 +280,7 @@ export default function Sidebar({
                     href={link.href(slug)}
                     onClick={onClose}
                     className={[
-                      "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
+                      "flex items-center gap-3 px-[24px] py-3 rounded-full transition-colors",
                       active ? "bg-blue text-white" : "hover:bg-accent",
                     ].join(" ")}
                   >
@@ -293,7 +293,7 @@ export default function Sidebar({
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-accent transition-colors disabled:opacity-60"
+                className="w-full flex items-center gap-3 px-[24px] py-3 rounded-full hover:bg-accent transition-colors disabled:opacity-60"
               >
                 {loggingOut ? (
                   <Loader2 size={22} className="text-red-500 animate-spin" />
