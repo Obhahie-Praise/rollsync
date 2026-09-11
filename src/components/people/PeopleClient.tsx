@@ -12,10 +12,13 @@ import {
   UserRound,
   ChevronDown,
   Check,
+  UserPlus,
+  ShieldCheck,
 } from "lucide-react";
 import {
   listPeople,
   createPerson,
+  addMember,
   setPersonStatus,
   type PersonListItem,
   type PersonType,
@@ -446,6 +449,268 @@ function AddPersonModal({ orgSlug, onCreated, onClose }: AddPersonModalProps) {
   );
 }
 
+// ─── Add Member modal ─────────────────────────────────────────────────────────
+// Provisions a full Roll SYNC account (User + Person + Membership) for someone
+// who will actively use Roll SYNC (e.g. a teacher signing in to take attendance).
+
+interface AddMemberModalProps {
+  orgSlug: string;
+  onCreated: (person: PersonListItem) => void;
+  onClose: () => void;
+}
+
+function AddMemberModal({ orgSlug, onCreated, onClose }: AddMemberModalProps) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [personType, setPersonType] = useState<PersonType>("TEACHER");
+  const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+  const [submitError, setSubmitError] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const validate = (): boolean => {
+    const e: Record<string, string> = {};
+    const n = name.trim();
+    if (!n) e.name = "Name is required.";
+    else if (n.length < 2) e.name = "At least 2 characters.";
+    else if (n.length > 150) e.name = "150 characters or fewer.";
+
+    const em = email.trim();
+    if (!em) e.email = "Email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) e.email = "Invalid email address.";
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    setSubmitError("");
+
+    startTransition(async () => {
+      const result = await addMember({
+        slug: orgSlug,
+        name: name.trim(),
+        email: email.trim(),
+        personType,
+      });
+
+      if (!result.ok) {
+        if (result.field) {
+          setErrors((prev) => ({ ...prev, [result.field!]: result.error }));
+        } else {
+          setSubmitError(result.error);
+        }
+        return;
+      }
+
+      // Reload list to pick up the newly created person with linkedUser info
+      onCreated({
+        id: result.personId,
+        name: name.trim(),
+        email: email.trim(),
+        phone: null,
+        orgIdentifier: null,
+        personType,
+        status: "ACTIVE",
+        linkedUserId: "provisioned", // non-null signals access
+        linkedUserName: name.trim(),
+        linkedUserEmail: email.trim(),
+        linkedUserRole: "MEMBER",
+        createdAt: new Date(),
+      });
+      onClose();
+    });
+  };
+
+  const prefersReduced =
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      aria-modal="true"
+      role="dialog"
+      aria-label="Add member"
+    >
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <motion.div
+        initial={prefersReduced ? {} : { opacity: 0, scale: 0.97, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={prefersReduced ? {} : { opacity: 0, scale: 0.97, y: 8 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-[480px] bg-background rounded-2xl shadow-[0px_8px_40px_0_rgba(0,0,0,0.15)] border border-black/6 p-6 max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-[18px] font-semibold">Add member</h2>
+            <p className="text-[13px] text-text-accent mt-0.5">
+              Creates an official Roll SYNC account for this person. They&apos;ll be
+              able to log in with their initial password (the organization ID).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-accent transition-colors text-text-accent shrink-0 ml-4"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Info banner */}
+        <div className="flex items-start gap-2.5 mb-4 p-3.5 rounded-xl bg-blue/5 border border-blue/15">
+          <ShieldCheck size={15} className="shrink-0 text-blue mt-0.5" />
+          <p className="text-[12px] text-blue/80 leading-relaxed">
+            A Roll SYNC account, person record, and organization membership will be created.
+            Existing accounts will be reused rather than duplicated.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {/* Name */}
+          <div className="space-y-1">
+            <label htmlFor="member-name" className="text-[13px] font-medium text-text-accent">
+              Full name <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="member-name"
+              ref={nameRef}
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (errors.name) setErrors((p) => ({ ...p, name: "" }));
+              }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
+              disabled={isPending}
+              maxLength={150}
+              placeholder="e.g. Jane Smith"
+              className={[
+                "w-full bg-white/60 rounded-xl px-4 py-2.5 text-[15px]",
+                "border border-black/8 outline-none focus:ring-2 focus:ring-blue/30 transition-all",
+                "placeholder:text-text-accent/50 disabled:opacity-60",
+                errors.name ? "ring-2 ring-red-300" : "",
+              ].join(" ")}
+            />
+            {errors.name && (
+              <p className="text-red-500 text-[12px] pl-1">{errors.name}</p>
+            )}
+          </div>
+
+          {/* Email */}
+          <div className="space-y-1">
+            <label htmlFor="member-email" className="text-[13px] font-medium text-text-accent">
+              Email address <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="member-email"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) setErrors((p) => ({ ...p, email: "" }));
+              }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
+              disabled={isPending}
+              maxLength={200}
+              placeholder="e.g. jane@school.edu"
+              className={[
+                "w-full bg-white/60 rounded-xl px-4 py-2.5 text-[15px]",
+                "border border-black/8 outline-none focus:ring-2 focus:ring-blue/30 transition-all",
+                "placeholder:text-text-accent/50 disabled:opacity-60",
+                errors.email ? "ring-2 ring-red-300" : "",
+              ].join(" ")}
+            />
+            {errors.email && (
+              <p className="text-red-500 text-[12px] pl-1">{errors.email}</p>
+            )}
+          </div>
+
+          {/* Person type */}
+          <div className="space-y-1">
+            <label htmlFor="member-type" className="text-[13px] font-medium text-text-accent">
+              Type <span className="text-red-400">*</span>
+            </label>
+            <select
+              id="member-type"
+              value={personType}
+              onChange={(e) => setPersonType(e.target.value as PersonType)}
+              disabled={isPending}
+              className="w-full bg-white/60 rounded-xl px-4 py-2.5 text-[15px] border border-black/8 outline-none focus:ring-2 focus:ring-blue/30 transition-all disabled:opacity-60"
+            >
+              {PERSON_TYPE_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {submitError && (
+          <p className="text-red-500 text-[13px] mt-4" role="alert">
+            {submitError}
+          </p>
+        )}
+
+        <div className="flex gap-2 justify-end mt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="px-4 py-2 rounded-full text-[13px] font-medium bg-accent hover:bg-accent/70 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending}
+            className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all disabled:opacity-60"
+          >
+            {isPending ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                Creating…
+              </>
+            ) : (
+              <>
+                <UserPlus size={13} />
+                Add member
+              </>
+            )}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Access badge ─────────────────────────────────────────────────────────────
 
 function AccessBadge({ person }: { person: PersonListItem }) {
@@ -660,8 +925,9 @@ export function PeopleClient({
   const [statusFilter, setStatusFilter] = useState<PersonStatus | "">("ACTIVE");
   const [accessFilter, setAccessFilter] = useState<"yes" | "no" | "">("");
 
-  // Modal
+  // Modals
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
 
   // Status changes
   const [, startStatusTransition] = useTransition();
@@ -749,6 +1015,16 @@ export function PeopleClient({
             onClose={() => setShowAdd(false)}
           />
         )}
+        {showAddMember && (
+          <AddMemberModal
+            orgSlug={orgSlug}
+            onCreated={(person) => {
+              setPeople((prev) => [person, ...prev]);
+              router.refresh();
+            }}
+            onClose={() => setShowAddMember(false)}
+          />
+        )}
       </AnimatePresence>
 
       <div className="px-8 sm:px-14 pb-20">
@@ -769,14 +1045,24 @@ export function PeopleClient({
           </div>
 
           {canManage && (
-            <button
-              type="button"
-              onClick={() => setShowAdd(true)}
-              className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all mt-2"
-            >
-              <Plus size={16} />
-              Add person
-            </button>
+            <div className="flex items-center gap-2 mt-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowAddMember(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-medium bg-accent text-foreground hover:bg-accent/70 active:scale-[0.97] transition-all border border-black/8"
+              >
+                <UserPlus size={16} />
+                Add member
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAdd(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all"
+              >
+                <Plus size={16} />
+                Add person
+              </button>
+            </div>
           )}
         </div>
 

@@ -550,3 +550,274 @@ export async function setPersonStatus(
     return { ok: false, error: "Failed to update status. Please try again." };
   }
 }
+
+
+// ─── Add Member (account provisioning) ───────────────────────────────────────
+//
+// Creates a full Roll SYNC account (User + Account record) via Better Auth,
+// then atomically creates/reuses the Person and Membership.
+//
+// Flow:
+//   1. Validate admin permissions
+//   2. Check if the email already belongs to an existing User
+//   3. If not → create User via auth.api.signUpEmail (handles password hashing)
+//   4. Check if a Person already exists for this org with the same email or linkedUserId
+//   5. Create/reuse Person, set linkedUserId
+//   6. Create/reuse Membership (MEMBER role, no downgrade)
+//
+// Initial password = orgId (the member must change it — the UI tells them).
+// Never exposed in logs or responses.
+
+export interface AddMemberInput {
+  slug: string;
+  name: string;
+  email: string;
+  personType: PersonType;
+  /** Optional — if provided, links to this existing Person instead of creating a new one */
+  existingPersonId?: string | null;
+}
+
+export type AddMemberResult =
+  | { ok: true; personId: string; isNewUser: boolean; isNewPerson: boolean }
+  | { ok: false; error: string; field?: "name" | "email" | "personType" };
+
+export async function addMember(input: AddMemberInput): Promise<AddMemberResult> {
+  // ── 1. Authenticate + authorise ──────────────────────────────────────────
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, error: "Not authenticated" };
+  }
+
+  let orgData;
+  try {
+    orgData = await requireOrgMember(session.user.id, input.slug);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Unauthorized" };
+  }
+
+  if (orgData.role === "MEMBER") {
+    return { ok: false, error: "You need Admin or Owner access to add members." };
+  }
+
+  // ── 2. Validate input ────────────────────────────────────────────────────
+  const name = input.name?.trim() ?? "";
+  if (!name) return { ok: false, error: "Name is required.", field: "name" };
+  if (name.length < 2) return { ok: false, error: "Name must be at least 2 characters.", field: "name" };
+  if (name.length > 150) return { ok: false, error: "Name must be 150 characters or fewer.", field: "name" };
+
+  const email = input.email?.trim().toLowerCase() ?? "";
+  if (!email) return { ok: false, error: "Email is required.", field: "email" };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Invalid email address.", field: "email" };
+  }
+
+  const validTypes: PersonType[] = ["STUDENT", "TEACHER", "STAFF", "ADMINISTRATOR", "DIRECTOR"];
+  if (!validTypes.includes(input.personType)) {
+    return { ok: false, error: "Invalid person type.", field: "personType" };
+  }
+
+  // ── 3. Resolve or create the Roll SYNC User ──────────────────────────────
+  let userId: string;
+  let isNewUser = false;
+
+  // Check if a user with this email already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+
+  if (existingUser) {
+    // Reuse the existing user — do not create a duplicate
+    userId = existingUser.id;
+  } else {
+    // Create the user via Better Auth (handles hashing, account record, etc.)
+    // The initial password is the orgId. The member should change it after first login.
+    try {
+      const signUpResult = await auth.api.signUpEmail({
+        body: {
+          name,
+          email,
+          password: orgData.org.id, // orgId as temporary initial password
+        },
+        // Pass empty headers — this is a server-initiated creation
+        headers: new Headers(),
+      });
+
+      if (!signUpResult?.user?.id) {
+        return { ok: false, error: "Failed to create account. Please try again." };
+      }
+      userId = signUpResult.user.id;
+      isNewUser = true;
+    } catch (err) {
+      console.error("[addMember] signUpEmail failed:", err);
+      // Last-chance check: maybe the user was created by a concurrent request
+      const raceUser = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (raceUser) {
+        userId = raceUser.id;
+      } else {
+        return { ok: false, error: "Failed to create account. Please try again." };
+      }
+    }
+  }
+
+  // ── 4. Resolve or create the Person, link, and create Membership ─────────
+  try {
+    let personId: string;
+    let isNewPerson = false;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Validate existingPersonId if provided
+      if (input.existingPersonId) {
+        const existing = await tx.person.findFirst({
+          where: { id: input.existingPersonId, organizationId: orgData.org.id },
+          select: { id: true, linkedUserId: true },
+        });
+        if (!existing) throw new Error("Person not found in this organization.");
+        if (existing.linkedUserId && existing.linkedUserId !== userId) {
+          throw new Error("This person is already linked to a different account.");
+        }
+        // Link Person → User
+        await tx.person.update({
+          where: { id: existing.id },
+          data: { linkedUserId: userId },
+        });
+        personId = existing.id;
+      } else {
+        // Check if any Person in this org is already linked to this user
+        const alreadyLinked = await tx.person.findFirst({
+          where: { organizationId: orgData.org.id, linkedUserId: userId },
+          select: { id: true },
+        });
+
+        if (alreadyLinked) {
+          personId = alreadyLinked.id;
+        } else {
+          // Check for an unlinked Person with this email in the org
+          const byEmail = await tx.person.findFirst({
+            where: { organizationId: orgData.org.id, email, linkedUserId: null },
+            select: { id: true },
+          });
+
+          if (byEmail) {
+            // Link the existing Person
+            await tx.person.update({
+              where: { id: byEmail.id },
+              data: { linkedUserId: userId, name, personType: input.personType },
+            });
+            personId = byEmail.id;
+          } else {
+            // Create a new Person
+            const created = await tx.person.create({
+              data: {
+                organizationId: orgData.org.id,
+                name,
+                email,
+                personType: input.personType,
+                status: "ACTIVE",
+                linkedUserId: userId,
+              },
+              select: { id: true },
+            });
+            personId = created.id;
+            isNewPerson = true;
+          }
+        }
+      }
+
+      // Create/reuse Membership — never downgrade an existing higher role
+      await tx.membership.upsert({
+        where: { userId_organizationId: { userId, organizationId: orgData.org.id } },
+        create: { userId, organizationId: orgData.org.id, role: "MEMBER" },
+        update: {}, // preserve existing role
+      });
+
+      return { personId, isNewPerson };
+    });
+
+    return { ok: true, personId: result.personId, isNewUser, isNewPerson: result.isNewPerson };
+  } catch (err) {
+    console.error("[addMember] transaction failed:", err);
+    const msg = err instanceof Error ? err.message : "Failed to complete member setup.";
+    return { ok: false, error: msg };
+  }
+}
+
+// ─── Link existing person to existing member account ─────────────────────────
+// Admin can link an unlinked Person to an existing User account directly.
+
+export interface LinkPersonToUserInput {
+  slug: string;
+  personId: string;
+  email: string; // email of the existing user to link
+}
+
+export type LinkPersonToUserResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export async function linkPersonToUser(
+  input: LinkPersonToUserInput
+): Promise<LinkPersonToUserResult> {
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, error: "Not authenticated" };
+  }
+
+  let orgData;
+  try {
+    orgData = await requireOrgMember(session.user.id, input.slug);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Unauthorized" };
+  }
+
+  if (orgData.role === "MEMBER") {
+    return { ok: false, error: "Admin or Owner access required." };
+  }
+
+  const email = input.email?.trim().toLowerCase() ?? "";
+  if (!email) return { ok: false, error: "Email is required." };
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (!user) return { ok: false, error: "No Roll SYNC account found with that email." };
+
+    const person = await prisma.person.findFirst({
+      where: { id: input.personId, organizationId: orgData.org.id },
+      select: { id: true, linkedUserId: true },
+    });
+    if (!person) return { ok: false, error: "Person not found." };
+    if (person.linkedUserId && person.linkedUserId !== user.id) {
+      return { ok: false, error: "This person is already linked to a different account." };
+    }
+
+    // Check this user isn't already linked to a different person in this org
+    const conflict = await prisma.person.findFirst({
+      where: { organizationId: orgData.org.id, linkedUserId: user.id, id: { not: input.personId } },
+      select: { name: true },
+    });
+    if (conflict) {
+      return { ok: false, error: `This account is already linked to "${conflict.name}" in this organization.` };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.person.update({ where: { id: input.personId }, data: { linkedUserId: user.id } });
+      await tx.membership.upsert({
+        where: { userId_organizationId: { userId: user.id, organizationId: orgData.org.id } },
+        create: { userId: user.id, organizationId: orgData.org.id, role: "MEMBER" },
+        update: {},
+      });
+    });
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[linkPersonToUser]", err);
+    return { ok: false, error: "Failed to link account. Please try again." };
+  }
+}

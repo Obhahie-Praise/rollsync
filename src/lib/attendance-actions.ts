@@ -1062,3 +1062,91 @@ export async function fetchSessionSummary(
     return { ok: false, error: "Failed to load session." };
   }
 }
+
+
+// ─── Teacher context helper ───────────────────────────────────────────────────
+// Resolves the full teacher identity chain for an authenticated user in an org.
+// Used by attendance session creation and any other route that needs to verify
+// the teacher identity server-side.
+//
+// Chain: Better Auth session → userId → org membership → linked Person (TEACHER)
+//
+// Returns the teacher Person + org, or an error with a code so callers can
+// respond appropriately.
+
+export interface TeacherContext {
+  userId: string;
+  org: { id: string; slug: string; name: string };
+  teacher: {
+    id: string;
+    name: string;
+    orgIdentifier: string | null;
+    email: string | null;
+  };
+  role: string;
+}
+
+export type ResolveTeacherContextResult =
+  | { ok: true; context: TeacherContext }
+  | { ok: false; error: string; code: string };
+
+/**
+ * Resolves the teacher identity chain for the currently authenticated user
+ * in the organization identified by `slug`.
+ *
+ * Does NOT trust any client-supplied teacher/person ID.
+ */
+export async function resolveTeacherContext(
+  slug: string
+): Promise<ResolveTeacherContextResult> {
+  let authSession;
+  try {
+    authSession = await getAuthSession();
+  } catch {
+    return { ok: false, error: "Not authenticated", code: "UNAUTHENTICATED" };
+  }
+
+  try {
+    const { org, role } = await requireOrgMember(authSession.user.id, slug);
+
+    const teacher = await prisma.person.findFirst({
+      where: {
+        organizationId: org.id,
+        linkedUserId: authSession.user.id,
+        personType: "TEACHER",
+        status: "ACTIVE",
+      },
+      select: {
+        id: true,
+        name: true,
+        orgIdentifier: true,
+        email: true,
+      },
+    });
+
+    if (!teacher) {
+      return {
+        ok: false,
+        error: "No active teacher profile linked to your account in this organization.",
+        code: "NO_TEACHER_PROFILE",
+      };
+    }
+
+    return {
+      ok: true,
+      context: {
+        userId: authSession.user.id,
+        org,
+        teacher,
+        role,
+      },
+    };
+  } catch (err) {
+    console.error("[resolveTeacherContext]", err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to resolve teacher context.",
+      code: "ERROR",
+    };
+  }
+}

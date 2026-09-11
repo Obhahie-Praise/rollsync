@@ -13,10 +13,12 @@ import {
   UserRound,
   ShieldCheck,
   ChevronRight,
+  UserPlus,
 } from "lucide-react";
 import {
   updatePerson,
   setPersonStatus,
+  addMember,
   type PersonDetail,
   type PersonType,
   type PersonStatus,
@@ -346,6 +348,182 @@ function InfoRow({
   );
 }
 
+// ─── Add Member panel ─────────────────────────────────────────────────────────
+// Shown when the person has no linked account yet.
+// Admin clicks "Add as member" → prompts for email → provisions account.
+
+interface AddMemberPanelProps {
+  person: PersonDetail;
+  orgSlug: string;
+  onSuccess: () => void;
+}
+
+function AddMemberPanel({ person, orgSlug, onSuccess }: AddMemberPanelProps) {
+  const [showForm, setShowForm] = useState(false);
+  const [email, setEmail] = useState(person.email ?? "");
+  const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+  const [submitError, setSubmitError] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const [success, setSuccess] = useState(false);
+
+  const handleAdd = () => {
+    const e: Record<string, string> = {};
+    const em = email.trim().toLowerCase();
+    if (!em) e.email = "Email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) e.email = "Invalid email address.";
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
+
+    setSubmitError("");
+    startTransition(async () => {
+      const result = await addMember({
+        slug: orgSlug,
+        name: person.name,
+        email: em,
+        personType: person.personType,
+        existingPersonId: person.id,
+      });
+
+      if (!result.ok) {
+        if (result.field === "email") {
+          setErrors({ email: result.error });
+        } else {
+          setSubmitError(result.error);
+        }
+        return;
+      }
+
+      setSuccess(true);
+      onSuccess();
+    });
+  };
+
+  if (success) {
+    return (
+      <div className="flex items-start gap-3 p-1">
+        <div className="w-8 h-8 rounded-full bg-green/10 flex items-center justify-center shrink-0 mt-0.5">
+          <Check size={15} className="text-green" />
+        </div>
+        <div>
+          <p className="text-[14px] font-medium text-green">Account provisioned</p>
+          <p className="text-[13px] text-text-accent mt-0.5">
+            {person.name} now has a Roll SYNC account and organization membership.
+            Their initial password is the organization ID — they should change it on first login.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {!showForm ? (
+        <div className="flex items-start gap-3 p-1">
+          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0 mt-0.5">
+            <ShieldCheck size={15} className="text-text-accent" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[14px] font-medium">No Roll SYNC access</p>
+            <p className="text-[13px] text-text-accent mt-0.5">
+              This person can participate in attendance but cannot log in to Roll SYNC.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all"
+            >
+              <UserPlus size={13} />
+              Add as member
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl bg-blue/5 border border-blue/15 p-4 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[13px] font-semibold text-blue">Add as Roll SYNC member</p>
+              <p className="text-[12px] text-text-accent mt-0.5">
+                This creates an official account. The initial password is the organization ID.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setShowForm(false); setErrors({}); setSubmitError(""); }}
+              className="shrink-0 p-1 rounded-full text-text-accent hover:text-foreground hover:bg-accent transition-colors"
+              aria-label="Cancel"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          {/* Email field */}
+          <div className="space-y-1">
+            <label className="text-[12px] font-medium text-text-accent">
+              Email address <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) setErrors((p) => ({ ...p, email: "" }));
+              }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+              disabled={isPending}
+              maxLength={200}
+              placeholder="e.g. jane@school.edu"
+              className={[
+                "w-full bg-white/70 rounded-xl px-3 py-2 text-[14px]",
+                "border border-black/8 outline-none focus:ring-2 focus:ring-blue/30 transition-all",
+                "placeholder:text-text-accent/50 disabled:opacity-60",
+                errors.email ? "ring-2 ring-red-300" : "",
+              ].join(" ")}
+            />
+            {errors.email && (
+              <p className="text-red-500 text-[12px] pl-1">{errors.email}</p>
+            )}
+          </div>
+
+          {submitError && (
+            <p className="text-red-600 text-[13px]" role="alert">
+              {submitError}
+            </p>
+          )}
+
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => { setShowForm(false); setErrors({}); setSubmitError(""); }}
+              disabled={isPending}
+              className="px-3 py-1.5 rounded-full text-[12px] font-medium bg-accent hover:bg-accent/70 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={isPending}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium bg-blue text-white hover:bg-blue/90 active:scale-[0.97] transition-all disabled:opacity-60"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  Creating account…
+                </>
+              ) : (
+                <>
+                  <UserPlus size={12} />
+                  Create account
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main detail component ────────────────────────────────────────────────────
 
 interface PersonDetailClientProps {
@@ -529,18 +707,28 @@ export function PersonDetailClient({
                 <InfoRow label="Role" value={linked.roleLabel} />
               </div>
             ) : (
-              <div className="rounded-2xl bg-white/60 border border-black/8 p-5 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0 mt-0.5">
-                  <ShieldCheck size={15} className="text-text-accent" />
-                </div>
-                <div>
-                  <p className="text-[14px] font-medium">No Roll SYNC access</p>
-                  <p className="text-[13px] text-text-accent mt-0.5">
-                    This person can participate in attendance but cannot log in
-                    to Roll SYNC. Invite them from the organization members
-                    settings when ready.
-                  </p>
-                </div>
+              <div className="rounded-2xl bg-white/60 border border-black/8 p-5">
+                {/* Add Member panel — available for any person type when canManage + active */}
+                {canManage && person.status === "ACTIVE" ? (
+                  <AddMemberPanel
+                    person={person}
+                    orgSlug={orgSlug}
+                    onSuccess={() => router.refresh()}
+                  />
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0 mt-0.5">
+                      <ShieldCheck size={15} className="text-text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-medium">No Roll SYNC access</p>
+                      <p className="text-[13px] text-text-accent mt-0.5">
+                        This person can participate in attendance but cannot log
+                        in to Roll SYNC.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </section>
