@@ -8,6 +8,7 @@ import {
 } from "@/lib/attendance-actions";
 import { RecordClient } from "@/components/attendance/RecordClient";
 import { AdminRecordClient } from "@/components/attendance/AdminRecordClient";
+import { requireAdminAccess } from "@/lib/auth-helpers";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -21,6 +22,9 @@ export default async function AttendanceRecordPage({
   const { slug } = await params;
   const { session: sessionId } = await searchParams;
 
+  // Server-side guard: teachers are redirected to /teacher/today before any data loads
+  await requireAdminAccess(slug);
+
   const authSession = await auth.api.getSession({ headers: await headers() });
   if (!authSession?.user) redirect("/");
 
@@ -29,20 +33,6 @@ export default async function AttendanceRecordPage({
     select: { id: true },
   });
   if (!org) notFound();
-
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: authSession.user.id,
-        organizationId: org.id,
-      },
-    },
-    select: { role: true },
-  });
-  if (!membership) redirect("/");
-
-  const isAdmin =
-    membership.role === "OWNER" || membership.role === "ADMIN";
 
   // ── If a specific session is requested, show the roll call ──────────────
   if (sessionId) {
@@ -71,41 +61,36 @@ export default async function AttendanceRecordPage({
   }
 
   // ── Admin with no sessionId: show org-wide records ──────────────────────
-  if (isAdmin) {
-    const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = new Date().toISOString().slice(0, 10);
 
-    const [recordsResult, classes, subjects] = await Promise.all([
-      fetchAdminRecords({
-        slug,
-        dateFrom: todayKey,
-        dateTo: todayKey,
-      }),
-      prisma.class.findMany({
-        where: { organizationId: org.id, status: "ACTIVE" },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      }),
-      prisma.subject.findMany({
-        where: { organizationId: org.id },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      }),
-    ]);
+  const [recordsResult, classes, subjects] = await Promise.all([
+    fetchAdminRecords({
+      slug,
+      dateFrom: todayKey,
+      dateTo: todayKey,
+    }),
+    prisma.class.findMany({
+      where: { organizationId: org.id, status: "ACTIVE" },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.subject.findMany({
+      where: { organizationId: org.id },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
-    const initialRecords = recordsResult.ok ? recordsResult.records : [];
-    const initialTotal = recordsResult.ok ? recordsResult.total : 0;
+  const initialRecords = recordsResult.ok ? recordsResult.records : [];
+  const initialTotal = recordsResult.ok ? recordsResult.total : 0;
 
-    return (
-      <AdminRecordClient
-        orgSlug={slug}
-        initialRecords={initialRecords}
-        initialTotal={initialTotal}
-        classOptions={classes}
-        subjectOptions={subjects}
-      />
-    );
-  }
-
-  // ── Teacher with no sessionId: redirect back to session page ────────────
-  redirect(`/${slug}/attendance/session`);
+  return (
+    <AdminRecordClient
+      orgSlug={slug}
+      initialRecords={initialRecords}
+      initialTotal={initialTotal}
+      classOptions={classes}
+      subjectOptions={subjects}
+    />
+  );
 }

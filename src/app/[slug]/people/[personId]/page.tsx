@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPerson } from "@/lib/people-actions";
 import { PersonDetailClient } from "@/components/people/PersonDetailClient";
+import { requireAdminAccess } from "@/lib/auth-helpers";
 
 interface PageProps {
   params: Promise<{ slug: string; personId: string }>;
@@ -11,6 +12,9 @@ interface PageProps {
 
 export default async function PersonDetailPage({ params }: PageProps) {
   const { slug, personId } = await params;
+
+  // Server-side guard: teachers are redirected to /teacher/today before any data loads
+  const { role } = await requireAdminAccess(slug);
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -23,19 +27,7 @@ export default async function PersonDetailPage({ params }: PageProps) {
   });
   if (!org) notFound();
 
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: session.user.id,
-        organizationId: org.id,
-      },
-    },
-    select: { role: true },
-  });
-
-  if (!membership) redirect("/");
-
-  const canManage = membership.role === "OWNER" || membership.role === "ADMIN";
+  const canManage = role === "OWNER" || role === "ADMIN";
 
   const result = await getPerson(slug, personId);
 

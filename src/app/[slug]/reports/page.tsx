@@ -9,6 +9,7 @@ import {
   fetchScheduleReport,
 } from "@/lib/reports-actions";
 import { ReportsClient } from "@/components/reports/ReportsClient";
+import { requireAdminAccess } from "@/lib/auth-helpers";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -16,6 +17,9 @@ interface PageProps {
 
 export default async function ReportsPage({ params }: PageProps) {
   const { slug } = await params;
+
+  // Server-side guard: teachers are redirected to /teacher/today before any data loads
+  await requireAdminAccess(slug);
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/");
@@ -25,17 +29,6 @@ export default async function ReportsPage({ params }: PageProps) {
     select: { id: true },
   });
   if (!org) notFound();
-
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: session.user.id,
-        organizationId: org.id,
-      },
-    },
-    select: { role: true },
-  });
-  if (!membership) redirect("/");
 
   // Fetch all initial report data in parallel
   const [summaryResult, classesResult, peopleResult, scheduleResult] =

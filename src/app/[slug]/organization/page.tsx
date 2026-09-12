@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { fetchOrgPageData } from "@/lib/org-page-actions";
 import { OrganizationClient } from "@/components/organization/OrganizationClient";
+import { requireAdminAccess } from "@/lib/auth-helpers";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -11,6 +12,9 @@ interface PageProps {
 
 export default async function OrganizationPage({ params }: PageProps) {
   const { slug } = await params;
+
+  // Server-side guard: teachers are redirected to /teacher/today before any data loads
+  await requireAdminAccess(slug);
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/");
@@ -21,20 +25,8 @@ export default async function OrganizationPage({ params }: PageProps) {
   });
   if (!org) notFound();
 
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: session.user.id,
-        organizationId: org.id,
-      },
-    },
-    select: { role: true },
-  });
-  if (!membership) redirect("/");
-
   const result = await fetchOrgPageData(slug);
   if (!result.ok) {
-    // Unlikely if membership check passes, but handle gracefully
     notFound();
   }
 

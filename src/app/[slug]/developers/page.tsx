@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listApiKeys } from "@/lib/api-key-actions";
 import { DevelopersPage } from "@/components/settings/DevelopersPage";
+import { requireAdminAccess } from "@/lib/auth-helpers";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -12,40 +13,24 @@ interface PageProps {
 export default async function DevelopersRoutePage({ params }: PageProps) {
   const { slug } = await params;
 
-  // 1. Auth check — the layout already does this but we double-check here
-  //    because this page loads sensitive API key data.
+  // Server-side guard: teachers and non-admins are redirected before any sensitive data loads
+  const { role } = await requireAdminAccess(slug);
+
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     redirect("/");
   }
 
-  // 2. Resolve organization
   const org = await prisma.organization.findUnique({
     where: { slug },
     select: { id: true },
   });
   if (!org) notFound();
 
-  // 3. Verify membership — never trust the slug alone
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: session.user.id,
-        organizationId: org.id,
-      },
-    },
-    select: { role: true },
-  });
-  if (!membership) redirect("/");
+  // Only OWNER and ADMIN can manage developer resources (requireAdminAccess guarantees this)
+  const canManage = role === "OWNER" || role === "ADMIN";
 
-  // 4. Only OWNER and ADMIN can manage developer resources (create / revoke keys)
-  const canManage =
-    membership.role === "OWNER" || membership.role === "ADMIN";
-
-  // 5. Load API keys — skip for MEMBERs (the component handles the empty state)
-  const keysResult = canManage
-    ? await listApiKeys(slug)
-    : { ok: true as const, keys: [] };
+  const keysResult = await listApiKeys(slug);
   const initialKeys = keysResult.ok ? keysResult.keys : [];
 
   return (

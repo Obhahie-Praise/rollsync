@@ -1,4 +1,5 @@
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
+import { requireAdminAccess } from "@/lib/auth-helpers";
 
 interface SettingsLayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,9 @@ export default async function SettingsLayout({
   params,
 }: SettingsLayoutProps) {
   const { slug } = await params;
+
+  // Server-side guard: teachers are redirected to /teacher/today before any data loads
+  await requireAdminAccess(slug);
 
   return (
     <div className="min-h-screen px-8 sm:px-14 pb-20">

@@ -9,6 +9,7 @@ import {
   listRooms,
 } from "@/lib/timetable-actions";
 import { TimetableClient } from "@/components/timetable/TimetableClient";
+import { requireAdminAccess } from "@/lib/auth-helpers";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -16,6 +17,9 @@ interface PageProps {
 
 export default async function TimetablePage({ params }: PageProps) {
   const { slug } = await params;
+
+  // Server-side guard: teachers are redirected to /teacher/today before any data loads
+  const { orgId, role } = await requireAdminAccess(slug);
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/");
@@ -26,19 +30,7 @@ export default async function TimetablePage({ params }: PageProps) {
   });
   if (!org) notFound();
 
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: session.user.id,
-        organizationId: org.id,
-      },
-    },
-    select: { role: true },
-  });
-  if (!membership) redirect("/");
-
-  const canManage =
-    membership.role === "OWNER" || membership.role === "ADMIN";
+  const canManage = role === "OWNER" || role === "ADMIN";
 
   // Load all data in parallel
   const [entriesResult, classesResult, subjectsResult, roomsResult, teachers] =
@@ -49,7 +41,7 @@ export default async function TimetablePage({ params }: PageProps) {
       listRooms(slug),
       // Teachers: people with personType = TEACHER in this org
       prisma.person.findMany({
-        where: { organizationId: org.id, personType: "TEACHER", status: "ACTIVE" },
+        where: { organizationId: orgId, personType: "TEACHER", status: "ACTIVE" },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),

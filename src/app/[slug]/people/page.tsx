@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listPeople } from "@/lib/people-actions";
 import { PeopleClient } from "@/components/people/PeopleClient";
+import { requireAdminAccess } from "@/lib/auth-helpers";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -11,6 +12,9 @@ interface PageProps {
 
 export default async function PeoplePage({ params }: PageProps) {
   const { slug } = await params;
+
+  // Server-side guard: teachers are redirected to /teacher/today before any data loads
+  const { orgId, role } = await requireAdminAccess(slug);
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -23,19 +27,7 @@ export default async function PeoplePage({ params }: PageProps) {
   });
   if (!org) notFound();
 
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: session.user.id,
-        organizationId: org.id,
-      },
-    },
-    select: { role: true },
-  });
-
-  if (!membership) redirect("/");
-
-  const canManage = membership.role === "OWNER" || membership.role === "ADMIN";
+  const canManage = role === "OWNER" || role === "ADMIN";
 
   // Load initial people (active by default)
   const result = await listPeople({ slug, status: "ACTIVE" });
@@ -43,7 +35,7 @@ export default async function PeoplePage({ params }: PageProps) {
 
   // Count all active people for the header badge
   const totalActive = await prisma.person.count({
-    where: { organizationId: org.id, status: "ACTIVE" },
+    where: { organizationId: orgId, status: "ACTIVE" },
   });
 
   return (
