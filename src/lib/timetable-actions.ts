@@ -20,10 +20,46 @@ export interface ClassItem {
   organizationId: string;
   name: string;
   code: string | null;
+  /** Stable public QR identity — e.g. "RS-7K4M9Q2X" */
+  publicCode: string | null;
   description: string | null;
   status: ClassStatus;
   memberCount: number;
   createdAt: Date;
+}
+
+// ─── Public code generation ───────────────────────────────────────────────────
+
+const PUBLIC_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/**
+ * Generate a stable, collision-resistant public class code.
+ * Format: RS-XXXXXXXX  (8 uppercase alphanumeric chars, no O/0/I/1 ambiguity)
+ * This is server-side only — never supplied by the client.
+ */
+function generateClassPublicCode(): string {
+  const chars = new Array<string>(8);
+  // Use Math.random — no crypto dependency needed for a short opaque token
+  for (let i = 0; i < 8; i++) {
+    chars[i] = PUBLIC_CODE_CHARS[Math.floor(Math.random() * PUBLIC_CODE_CHARS.length)];
+  }
+  return "RS-" + chars.join("");
+}
+
+/**
+ * Generate a unique public code, retrying up to 10 times if there is a collision.
+ */
+async function generateUniquePublicCode(): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = generateClassPublicCode();
+    const existing = await prisma.class.findUnique({
+      where: { publicCode: candidate },
+      select: { id: true },
+    });
+    if (!existing) return candidate;
+  }
+  // Extremely unlikely — 32^8 = ~1 trillion combinations
+  throw new Error("Could not generate a unique class code. Please try again.");
 }
 
 export interface SubjectItem {
@@ -135,6 +171,7 @@ export async function listClasses(slug: string): Promise<ListClassesResult> {
         organizationId: true,
         name: true,
         code: true,
+        publicCode: true,
         description: true,
         status: true,
         createdAt: true,
@@ -149,6 +186,7 @@ export async function listClasses(slug: string): Promise<ListClassesResult> {
         organizationId: c.organizationId,
         name: c.name,
         code: c.code,
+        publicCode: c.publicCode,
         description: c.description,
         status: c.status,
         memberCount: c._count.memberships,
@@ -198,12 +236,14 @@ export async function createClass(
         code,
         description: input.description?.trim() || null,
         status: "ACTIVE",
+        publicCode: await generateUniquePublicCode(),
       },
       select: {
         id: true,
         organizationId: true,
         name: true,
         code: true,
+        publicCode: true,
         description: true,
         status: true,
         createdAt: true,

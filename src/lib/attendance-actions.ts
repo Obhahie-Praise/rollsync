@@ -293,8 +293,10 @@ export async function fetchTodayClasses(
 
 export interface SignInInput {
   slug: string;
-  /** Class ID decoded from the QR code */
-  scannedClassId: string;
+  /** Class internal ID — kept for backward compat with the Today page sign-in sheet */
+  scannedClassId?: string;
+  /** Public code decoded from the QR (e.g. "RS-7K4M9Q2X") — preferred for QR flow */
+  scannedPublicCode?: string;
 }
 
 export type SignInResult =
@@ -314,21 +316,42 @@ export async function teacherSignIn(
   try {
     const { org } = await requireOrgMember(authSession.user.id, input.slug);
 
-    // A. Verify the class belongs to this org
-    const cls = await prisma.class.findFirst({
-      where: {
-        id: input.scannedClassId,
-        organizationId: org.id,
-        status: "ACTIVE",
-      },
-      select: { id: true, name: true, code: true },
-    });
-    if (!cls) {
-      return {
-        ok: false,
-        error: "This class does not exist in your organization.",
-        code: "INVALID_CLASS",
-      };
+    // A. Verify the class belongs to this org — resolve by publicCode OR id
+    let cls;
+    if (input.scannedPublicCode) {
+      cls = await prisma.class.findFirst({
+        where: {
+          publicCode: input.scannedPublicCode,
+          organizationId: org.id,
+          status: "ACTIVE",
+        },
+        select: { id: true, name: true, code: true },
+      });
+      if (!cls) {
+        return {
+          ok: false,
+          error: "This class does not exist in your organization.",
+          code: "INVALID_CLASS",
+        };
+      }
+    } else if (input.scannedClassId) {
+      cls = await prisma.class.findFirst({
+        where: {
+          id: input.scannedClassId,
+          organizationId: org.id,
+          status: "ACTIVE",
+        },
+        select: { id: true, name: true, code: true },
+      });
+      if (!cls) {
+        return {
+          ok: false,
+          error: "This class does not exist in your organization.",
+          code: "INVALID_CLASS",
+        };
+      }
+    } else {
+      return { ok: false, error: "No class identifier provided.", code: "INVALID_CLASS" };
     }
 
     // B. Resolve teacher person
@@ -1203,4 +1226,441 @@ export async function completeSession(
 }
 
 
+// ─── 9. Resolve class check-in from a scanned QR public code ─────────────────
+//
+// Called immediately after the teacher scans a QR.
+// Performs full server-side validation WITHOUT creating any AttendanceSession.
+// Returns a preview payload the teacher can review before confirming.
+//
+// The client supplies ONLY the scanned publicCode + slug.
+// All other context (teacher, timetable, room, arrival status) is resolved
+// server-side from the authenticated session.
+
+export interface CheckInPreview {
+  /** The resolved timetable entry id — passed back opaquely for confirmClassCheckIn */
+  timetableEntryId: string;
+  /** The scanned public code — echoed back for idempotency check in confirm */
+  classPublicCode: string;
+  className: string;
+  classCode: string | null;
+  subjectName: string;
+  teacherName: string;
+  roomName: string | null;
+  startTime: string;
+  endTime: string;
+  sessionDate: string; // ISO date string YYYY-MM-DD
+  arrivalStatus: ArrivalStatus;
+  /** True if a session already exists (teacher is re-scanning) */
+  alreadyCheckedIn: boolean;
+  existingSessionId: string | null;
+}
+
+export type ResolveClassCheckInResult =
+  | { ok: true; preview: CheckInPreview }
+  | { ok: false; error: string; code?: string };
+
+export async function resolveClassCheckIn(
+  slug: string,
+  scannedPublicCode: string
+): Promise<ResolveClassCheckInResult> {
+  let authSession;
+  try {
+    authSession = await getAuthSession();
+  } catch {
+    return { ok: false, error: "Not authenticated", code: "UNAUTHENTICATED" };
+  }
+
+  try {
+    const { org } = await requireOrgMember(authSession.user.id, slug);
+
+    // 1. Resolve the class by its public code
+    const cls = await prisma.class.findUnique({
+      where: { publicCode: scannedPublicCode },
+      select: { id: true, name: true, code: true, organizationId: true, status: true },
+    });
+
+    if (!cls) {
+      return {
+        ok: false,
+        error: "This QR code does not match any class.",
+        code: "CLASS_NOT_FOUND",
+      };
+    }
+
+    if (cls.organizationId !== org.id) {
+      return {
+        ok: false,
+        error: "This class belongs to a different organization.",
+        code: "WRONG_ORG",
+      };
+    }
+
+    if (cls.status !== "ACTIVE") {
+      return {
+        ok: false,
+        error: "This class is not currently active.",
+        code: "CLASS_INACTIVE",
+      };
+    }
+
+    // 2. Resolve the authenticated teacher's linked Person
+    const teacher = await prisma.person.findFirst({
+      where: {
+        organizationId: org.id,
+        linkedUserId: authSession.user.id,
+        personType: "TEACHER",
+        status: "ACTIVE",
+      },
+      select: { id: true, name: true },
+    });
+
+    if (!teacher) {
+      return {
+        ok: false,
+        error: "No teacher profile is linked to your account in this organization.",
+        code: "NO_TEACHER_PROFILE",
+      };
+    }
+
+    // 3. Find the timetable entry for teacher + class today
+    const todayDow = todayDayOfWeek();
+    const now = new Date();
+    const { start: dayStart, end: dayEnd } = todayRange();
+
+    const entries = await prisma.timetableEntry.findMany({
+      where: {
+        organizationId: org.id,
+        teacherPersonId: teacher.id,
+        classId: cls.id,
+        status: "ACTIVE",
+        effectiveFrom: { lte: now },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      },
+      include: {
+        subject: { select: { id: true, name: true } },
+        room: { select: { name: true } },
+        exceptions: {
+          where: { exceptionDate: { gte: dayStart, lte: dayEnd } },
+          select: { exceptionType: true, substitutePersonId: true },
+        },
+      },
+    });
+
+    // Filter to entries that include today's day of week
+    const validEntries = entries.filter((e) => {
+      const days = e.daysOfWeek.split(",").map((d) => parseInt(d.trim(), 10));
+      if (!days.includes(todayDow)) return false;
+      // Skip cancelled occurrences
+      if (e.exceptions.some((ex) => ex.exceptionType === "CANCELLED")) return false;
+      // Skip if substituted by someone other than this teacher
+      if (
+        e.exceptions.some(
+          (ex) =>
+            ex.exceptionType === "SUBSTITUTED" &&
+            ex.substitutePersonId !== teacher.id
+        )
+      )
+        return false;
+      return true;
+    });
+
+    if (validEntries.length === 0) {
+      // Distinguish: assigned but not today vs not assigned at all
+      const assignedAtAll = await prisma.timetableEntry.count({
+        where: {
+          organizationId: org.id,
+          teacherPersonId: teacher.id,
+          classId: cls.id,
+          status: "ACTIVE",
+        },
+      });
+      if (assignedAtAll === 0) {
+        return {
+          ok: false,
+          error: "This class isn't on your timetable.",
+          code: "NOT_ASSIGNED",
+        };
+      }
+      return {
+        ok: false,
+        error: "This class isn't on your timetable today.",
+        code: "NOT_SCHEDULED_TODAY",
+      };
+    }
+
+    const entry = validEntries[0];
+
+    // 4. Check for an existing session (idempotent re-scan)
+    const todayDate = new Date(
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+    );
+
+    const existing = await prisma.attendanceSession.findUnique({
+      where: {
+        timetableEntryId_sessionDate: {
+          timetableEntryId: entry.id,
+          sessionDate: todayDate,
+        },
+      },
+      select: { id: true, arrivalStatus: true },
+    });
+
+    // 5. Compute arrival status server-side from current time
+    const arrivalStatus = computeArrivalStatus(entry.startTime);
+
+    // Use the YYYY-MM-DD of today
+    const sessionDateStr = todayDate.toISOString().slice(0, 10);
+
+    return {
+      ok: true,
+      preview: {
+        timetableEntryId: entry.id,
+        classPublicCode: scannedPublicCode,
+        className: cls.name,
+        classCode: cls.code,
+        subjectName: entry.subject.name,
+        teacherName: teacher.name,
+        roomName: entry.room?.name ?? null,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        sessionDate: sessionDateStr,
+        arrivalStatus: existing ? existing.arrivalStatus : arrivalStatus,
+        alreadyCheckedIn: !!existing,
+        existingSessionId: existing?.id ?? null,
+      },
+    };
+  } catch (err) {
+    console.error("[resolveClassCheckIn]", err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to resolve class check-in.",
+    };
+  }
+}
+
+
+// ─── 10. Confirm class check-in ───────────────────────────────────────────────
+//
+// Called when the teacher explicitly presses "Check in" on the preview screen.
+// Performs the AUTHORITATIVE server-side re-validation before creating the session.
+// Fully idempotent — safe to call multiple times.
+
+export type ConfirmClassCheckInResult =
+  | { ok: true; session: AttendanceSessionSummary }
+  | { ok: false; error: string; code?: string };
+
+export async function confirmClassCheckIn(
+  slug: string,
+  timetableEntryId: string,
+  classPublicCode: string
+): Promise<ConfirmClassCheckInResult> {
+  let authSession;
+  try {
+    authSession = await getAuthSession();
+  } catch {
+    return { ok: false, error: "Not authenticated", code: "UNAUTHENTICATED" };
+  }
+
+  try {
+    const { org } = await requireOrgMember(authSession.user.id, slug);
+
+    // A. Re-verify the class by its public code (never trust client-supplied classId)
+    const cls = await prisma.class.findUnique({
+      where: { publicCode: classPublicCode },
+      select: { id: true, name: true, code: true, organizationId: true, status: true },
+    });
+
+    if (!cls || cls.organizationId !== org.id || cls.status !== "ACTIVE") {
+      return {
+        ok: false,
+        error: "This class is not valid or does not belong to your organization.",
+        code: "INVALID_CLASS",
+      };
+    }
+
+    // B. Re-verify teacher identity
+    const teacher = await prisma.person.findFirst({
+      where: {
+        organizationId: org.id,
+        linkedUserId: authSession.user.id,
+        personType: "TEACHER",
+        status: "ACTIVE",
+      },
+      select: { id: true, name: true },
+    });
+
+    if (!teacher) {
+      return {
+        ok: false,
+        error: "No teacher profile is linked to your account.",
+        code: "NO_TEACHER_PROFILE",
+      };
+    }
+
+    // C. Re-verify the timetable entry belongs to this teacher + class + org
+    const entry = await prisma.timetableEntry.findFirst({
+      where: {
+        id: timetableEntryId,
+        organizationId: org.id,
+        teacherPersonId: teacher.id,
+        classId: cls.id,
+        status: "ACTIVE",
+      },
+      include: {
+        subject: { select: { id: true, name: true } },
+        room: { select: { name: true } },
+      },
+    });
+
+    if (!entry) {
+      return {
+        ok: false,
+        error: "Timetable entry not found or not authorized.",
+        code: "INVALID_ENTRY",
+      };
+    }
+
+    // D. Re-verify today's schedule and exceptions
+    const todayDow = todayDayOfWeek();
+    const { start: dayStart, end: dayEnd } = todayRange();
+    const now = new Date();
+
+    const dayMatch = entry.daysOfWeek
+      .split(",")
+      .map((d) => parseInt(d.trim(), 10))
+      .includes(todayDow);
+
+    if (!dayMatch) {
+      return {
+        ok: false,
+        error: "This class is not scheduled for today.",
+        code: "NOT_SCHEDULED_TODAY",
+      };
+    }
+
+    // Check exceptions for today
+    const todayExceptions = await prisma.timetableException.findMany({
+      where: {
+        timetableEntryId: entry.id,
+        exceptionDate: { gte: dayStart, lte: dayEnd },
+      },
+      select: { exceptionType: true, substitutePersonId: true },
+    });
+
+    if (todayExceptions.some((ex) => ex.exceptionType === "CANCELLED")) {
+      return {
+        ok: false,
+        error: "This class has been cancelled today.",
+        code: "CLASS_CANCELLED",
+      };
+    }
+
+    if (
+      todayExceptions.some(
+        (ex) =>
+          ex.exceptionType === "SUBSTITUTED" &&
+          ex.substitutePersonId !== teacher.id
+      )
+    ) {
+      return {
+        ok: false,
+        error: "A substitute teacher is covering this class today.",
+        code: "SUBSTITUTED",
+      };
+    }
+
+    // E. Idempotent upsert of AttendanceSession
+    const todayDate = new Date(
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+    );
+
+    const existing = await prisma.attendanceSession.findUnique({
+      where: {
+        timetableEntryId_sessionDate: {
+          timetableEntryId: entry.id,
+          sessionDate: todayDate,
+        },
+      },
+      include: {
+        class: { select: { name: true, code: true } },
+        subject: { select: { name: true } },
+        teacherPerson: { select: { name: true } },
+        _count: { select: { records: true } },
+        records: { where: { status: "PRESENT" }, select: { id: true } },
+      },
+    });
+
+    if (existing) {
+      return {
+        ok: true,
+        session: {
+          id: existing.id,
+          checkinAt: existing.checkinAt,
+          arrivalStatus: existing.arrivalStatus,
+          status: existing.status,
+          className: existing.class.name,
+          classCode: existing.class.code,
+          subjectName: existing.subject.name,
+          teacherName: existing.teacherPerson.name,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+          sessionDate: existing.sessionDate,
+          recordCount: existing._count.records,
+          presentCount: existing.records.length,
+          absentCount: existing._count.records - existing.records.length,
+        },
+      };
+    }
+
+    // F. Server-computed arrival status
+    const arrivalStatus = computeArrivalStatus(entry.startTime);
+
+    const newSession = await prisma.attendanceSession.create({
+      data: {
+        organizationId: org.id,
+        timetableEntryId: entry.id,
+        teacherPersonId: teacher.id,
+        classId: cls.id,
+        subjectId: entry.subjectId,
+        sessionDate: todayDate,
+        arrivalStatus,
+        status: "ACTIVE",
+      },
+      include: {
+        class: { select: { name: true, code: true } },
+        subject: { select: { name: true } },
+        teacherPerson: { select: { name: true } },
+        _count: { select: { records: true } },
+        records: { where: { status: "PRESENT" }, select: { id: true } },
+      },
+    });
+
+    return {
+      ok: true,
+      session: {
+        id: newSession.id,
+        checkinAt: newSession.checkinAt,
+        arrivalStatus: newSession.arrivalStatus,
+        status: newSession.status,
+        className: newSession.class.name,
+        classCode: newSession.class.code,
+        subjectName: newSession.subject.name,
+        teacherName: newSession.teacherPerson.name,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        sessionDate: newSession.sessionDate,
+        recordCount: 0,
+        presentCount: 0,
+        absentCount: 0,
+      },
+    };
+  } catch (err) {
+    console.error("[confirmClassCheckIn]", err);
+    return {
+      ok: false,
+      error:
+        err instanceof Error ? err.message : "Check-in failed. Please try again.",
+    };
+  }
+}
 

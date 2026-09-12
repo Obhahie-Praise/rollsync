@@ -14,6 +14,7 @@ import {
   BookOpen,
   MapPin,
   ChevronRight,
+  ScanLine,
 } from "lucide-react";
 import {
   teacherSignIn,
@@ -248,13 +249,22 @@ function ClassCard({ item, orgSlug, onSignIn }: ClassCardProps) {
               Continue
             </Link>
           ) : (
-            <button
-              type="button"
-              onClick={() => onSignIn(item)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue text-white text-[14px] font-semibold hover:bg-blue/90 active:scale-[0.97] transition-all"
-            >
-              Sign in
-            </button>
+            <div className="flex flex-col gap-1.5 items-end">
+              <Link
+                href={`/${orgSlug}/teacher/attendance/scan`}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue text-white text-[14px] font-semibold hover:bg-blue/90 active:scale-[0.97] transition-all"
+              >
+                <QrCode size={14} />
+                Scan QR
+              </Link>
+              <button
+                type="button"
+                onClick={() => onSignIn(item)}
+                className="text-[12px] text-text-accent hover:text-foreground transition-colors underline-offset-2 hover:underline"
+              >
+                Sign in manually
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -367,6 +377,17 @@ export function TeacherTodayClient({
               </div>
             </div>
           )}
+
+          {/* Primary CTA — always visible */}
+          <div className="mt-5">
+            <Link
+              href={`/${orgSlug}/teacher/attendance/scan`}
+              className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl bg-blue text-white text-[16px] font-semibold hover:bg-blue/90 active:scale-[0.98] transition-all"
+            >
+              <ScanLine size={20} />
+              Scan class QR
+            </Link>
+          </div>
         </div>
 
         {/* Error */}

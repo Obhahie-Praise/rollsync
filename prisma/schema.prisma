@@ -278,8 +278,12 @@ model Class {
   id             String      @id @default(cuid())
   organizationId String
   name           String
-  // Short code shown in timetable cells (optional)
+  // Short code shown in timetable cells (optional, admin-assigned)
   code           String?
+  // Stable public QR identity — generated server-side, never changes
+  // Format: RS-XXXXXXXX (8 uppercase alphanumeric chars)
+  // Safe to expose in QR codes; does not leak internal DB IDs
+  publicCode     String?     @unique
   description    String?
   status         ClassStatus @default(ACTIVE)
   createdAt      DateTime    @default(now())
@@ -293,6 +297,7 @@ model Class {
   // Names must be unique within an org
   @@unique([organizationId, name])
   @@index([organizationId])
+  @@index([publicCode])
   @@map("class")
 }
 

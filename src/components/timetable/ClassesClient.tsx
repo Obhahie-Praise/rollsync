@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -12,6 +12,10 @@ import {
   ToggleRight,
   Pencil,
   Users,
+  QrCode,
+  Download,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   listClasses,
@@ -21,6 +25,7 @@ import {
   type ClassItem,
   type ClassStatus,
 } from "@/lib/timetable-actions";
+import { generateQRCodeDataURL } from "@/lib/qr-generator";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -41,7 +46,161 @@ function statusBadge(status: ClassStatus) {
   );
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
+// ─── QR Panel ─────────────────────────────────────────────────────────────────
+
+interface QRPanelProps {
+  cls: ClassItem;
+  onClose: () => void;
+}
+
+function QRPanel({ cls, onClose }: QRPanelProps) {
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // The canonical Roll SYNC class URL encoded in the QR
+  const qrPayload = `https://rollsync.app/c/${cls.publicCode}`;
+
+  useEffect(() => {
+    if (!cls.publicCode) return;
+    let cancelled = false;
+    // Use a microtask to avoid calling setState synchronously in the effect body
+    const generate = async () => {
+      try {
+        const url = generateQRCodeDataURL(qrPayload, 320);
+        if (!cancelled) setQrDataUrl(url);
+      } catch {
+        // ignore generation errors
+      }
+    };
+    void generate();
+    return () => {
+      cancelled = true;
+    };
+  }, [cls.publicCode, qrPayload]);
+
+  const handleDownload = useCallback(() => {
+    if (!qrDataUrl) return;
+    const a = document.createElement("a");
+    a.href = qrDataUrl;
+    // Filename: "SS2A-class-qr.png"
+    const safeName = cls.name.replace(/[^a-zA-Z0-9-_]/g, "").slice(0, 40) || "class";
+    a.download = `${safeName}-class-qr.png`;
+    a.click();
+  }, [qrDataUrl, cls.name]);
+
+  const handleCopy = useCallback(async () => {
+    if (!cls.publicCode) return;
+    try {
+      await navigator.clipboard.writeText(cls.publicCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore clipboard errors
+    }
+  }, [cls.publicCode]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-6 sm:pb-0">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="absolute inset-0 bg-black/25 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <motion.div
+        initial={{ opacity: 0, y: 32 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 32 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-xs bg-background rounded-[24px] shadow-[0_8px_40px_rgba(0,0,0,0.18)] p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`QR code for ${cls.name}`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[18px] font-semibold">{cls.name}</p>
+            {cls.code && (
+              <p className="text-[13px] text-text-accent">{cls.code}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-accent transition-colors text-text-accent"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {cls.publicCode ? (
+          <>
+            {/* Public code display */}
+            <div className="flex items-center justify-between bg-accent/60 rounded-xl px-4 py-2.5 mb-4">
+              <span className="font-mono text-[15px] font-medium tracking-widest">
+                {cls.publicCode}
+              </span>
+              <button
+                onClick={handleCopy}
+                className="p-1.5 rounded-lg hover:bg-accent transition-colors text-text-accent"
+                aria-label="Copy class code"
+                title="Copy code"
+              >
+                {copied ? (
+                  <Check size={14} className="text-green-600" />
+                ) : (
+                  <Copy size={14} />
+                )}
+              </button>
+            </div>
+
+            {/* QR code */}
+            <div className="flex justify-center mb-4">
+              {qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrDataUrl}
+                  alt={`QR code for ${cls.name} (${cls.publicCode})`}
+                  width={200}
+                  height={200}
+                  className="rounded-xl border border-black/8"
+                />
+              ) : (
+                <div className="w-[200px] h-[200px] rounded-xl bg-accent flex items-center justify-center">
+                  <Loader2 size={24} className="animate-spin text-text-accent" />
+                </div>
+              )}
+            </div>
+
+            <p className="text-[12px] text-text-accent text-center mb-4 leading-relaxed">
+              Teachers scan this QR to check in to{" "}
+              <span className="font-medium text-foreground">{cls.name}</span>.
+            </p>
+
+            {/* Download button */}
+            <button
+              onClick={handleDownload}
+              disabled={!qrDataUrl}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue text-white text-[15px] font-medium hover:bg-blue/90 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              <Download size={16} />
+              Download QR
+            </button>
+          </>
+        ) : (
+          <p className="text-[14px] text-text-accent text-center py-8">
+            No QR code available for this class.
+          </p>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
@@ -300,6 +459,7 @@ export function ClassesClient({
   const [editing, setEditing] = useState<ClassItem | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [qrClass, setQrClass] = useState<ClassItem | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const [, startTransition] = useTransition();
 
@@ -364,6 +524,16 @@ export function ClassesClient({
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
+      {/* QR Panel overlay */}
+      <AnimatePresence>
+        {qrClass && (
+          <QRPanel
+            key={qrClass.id}
+            cls={qrClass}
+            onClose={() => setQrClass(null)}
+          />
+        )}
+      </AnimatePresence>
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -512,6 +682,16 @@ export function ClassesClient({
 
               {canManage && (
                 <div className="flex items-center gap-2 shrink-0 ml-4">
+                  {cls.publicCode && (
+                    <button
+                      onClick={() => setQrClass(cls)}
+                      className="p-2 rounded-lg hover:bg-accent transition-colors text-text-accent hover:text-black"
+                      aria-label="Show QR code"
+                      title="Class QR code"
+                    >
+                      <QrCode size={16} />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleEdit(cls)}
                     className="p-2 rounded-lg hover:bg-accent transition-colors text-text-accent hover:text-black"
