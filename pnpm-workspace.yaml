@@ -1,6 +1,14 @@
 allowBuilds:
+  # Prisma engines — required for Prisma Client to run
   "@prisma/engines": true
   prisma: true
+  # Native binary for msgpackr (used by uploadthing's effect platform)
+  # The JS fallback works without the native build; block to keep CI safe
+  msgpackr-extract: false
+  # Postinstall runner for unrs-resolver (eslint-import-resolver-typescript dep)
+  # unrs-resolver is already blocked; block its postinstall runner too
+  napi-postinstall: false
+  # sharp is not used in this project
   sharp: false
+  # unrs-resolver is a dev ESLint resolver — native build not required
   unrs-resolver: false
-

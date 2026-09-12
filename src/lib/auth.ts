@@ -2,9 +2,30 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/lib/prisma"; // your prisma client instance
 
+// Resolve the base URL for this environment.
+// In production, BETTER_AUTH_URL must be set to the deployed origin (e.g. https://rollsync.app).
+// Locally it falls back to http://localhost:3000.
+const baseURL =
+  process.env.BETTER_AUTH_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "http://localhost:3000";
+
+// Always trust the configured base URL.
+// In development also trust localhost:3000 so that a misconfigured BETTER_AUTH_URL
+// (e.g. pointing at a different port) doesn't produce silent 403s on auth routes.
+const trustedOrigins = Array.from(
+  new Set([
+    baseURL,
+    ...(process.env.NODE_ENV !== "production"
+      ? ["http://localhost:3000"]
+      : []),
+  ])
+);
+
 export const auth = betterAuth({
+  baseURL,
   database: prismaAdapter(prisma, {
-    provider: "postgresql", // or "mysql", "sqlite", ...etc
+    provider: "postgresql",
   }),
   emailAndPassword: {
     enabled: true,
@@ -15,5 +36,5 @@ export const auth = betterAuth({
         clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     }
   },
-  trustedOrigins: ["http://localhost:3000"],
+  trustedOrigins,
 });
