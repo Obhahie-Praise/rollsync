@@ -13,6 +13,7 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@uploadthing/react": "^7.3.3",
+    "@vercel/analytics": "^2.0.1",
     "better-auth": "^1.7.3",
     "framer-motion": "^13.2.0",
     "jsqr": "1.4.0",
