@@ -39,22 +39,13 @@ export default function HeroSection() {
       <section className="hero-section min-h-screen flex flex-col pt-[80px]">
         {/* Content */}
         <div className="flex-1 flex flex-col justify-center px-5 sm:px-8 lg:px-10 pt-12 pb-0">
-          {/* Eyebrow label */}
-          <FadeUp delay={0}>
-            <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest uppercase text-[#7898ff]/80 mb-6 block">
-              <span className="w-4 h-px bg-[#7898ff]/50 inline-block" />
-              Attendance infrastructure
-              <span className="w-4 h-px bg-[#7898ff]/50 inline-block" />
-            </span>
-          </FadeUp>
 
           {/* Headline */}
           <FadeUp delay={0.1}>
-            <h1 className="display-font text-[52px] sm:text-[68px] lg:text-[80px] xl:text-[96px] font-semibold text-white leading-[1.0] tracking-tight max-w-4xl">
-              Everyone in{" "}
-              <span className="text-blue-gradient">sync.</span>
+            <h1 className="display-font text-[52px] sm:text-[68px] lg:text-[80px] xl:text-[96px] font- text-white leading-[1.0] tracking-tight max-w-4xl">
+              Attendance Infrastructure{" "}
               <br />
-              Every time.
+              built for schools
             </h1>
           </FadeUp>
 
@@ -89,31 +80,12 @@ export default function HeroSection() {
               </div>
             </FadeUp>
           </div>
-
-          {/* Product visual */}
-          <FadeUp delay={0.45} className="mt-14 sm:mt-16 w-full">
-            <div className="relative rounded-[20px] sm:rounded-[28px] overflow-hidden border border-white/8 shadow-[0_8px_64px_rgba(0,0,0,0.6)]">
-              {/* Subtle top-edge glow */}
-              <div
-                aria-hidden
-                className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-[#7898ff]/40 to-transparent pointer-events-none"
-              />
-              <Image
-                src="/hero.svg"
-                alt="Roll SYNC attendance dashboard"
-                width={1400}
-                height={600}
-                className="w-full h-auto block"
-                priority
-              />
-            </div>
-          </FadeUp>
         </div>
 
         {/* Bottom fade-out so hero blends into the next section */}
         <div
           aria-hidden
-          className="h-32 bg-linear-to-b from-transparent to-white pointer-events-none"
+          className="h-50 bg-linear-to-b from-transparent to-white pointer-events-none"
         />
       </section>
 
