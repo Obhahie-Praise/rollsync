@@ -68,7 +68,8 @@ type ScanState =
   | { phase: "preview"; preview: CheckInPreview }
   | { phase: "confirming"; preview: CheckInPreview }
   | { phase: "error"; message: string; code?: string }
-  | { phase: "success"; sessionId: string; preview: CheckInPreview };
+  | { phase: "success"; sessionId: string; preview: CheckInPreview }
+  | { phase: "manual" };
 
 // ─── Camera Scanner ───────────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ function CameraScanner({ onDetected, onError, active }: CameraScannerProps) {
       if (cancelled) return;
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA || video.videoWidth === 0) {
         raf = requestAnimationFrame(scanFrame);
         return;
       }
@@ -120,7 +121,7 @@ function CameraScanner({ onDetected, onError, active }: CameraScannerProps) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const result = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert",
+        inversionAttempts: "attemptBoth",
       });
       if (result) {
         const code = extractPublicCode(result.data);
@@ -449,9 +450,24 @@ export function ScanClient({ orgSlug }: ScanClientProps) {
 
   const handleDetected = useCallback(
     (publicCode: string) => {
-      setScanState({ phase: "resolving", code: publicCode });
+      let codeToResolve = publicCode;
+      
+      // If manually entered, it might be the bare code or URL. Use extractPublicCode to normalize.
+      // But if it's already extracted, extractPublicCode might still work.
+      const extracted = extractPublicCode(publicCode);
+      if (extracted) {
+        codeToResolve = extracted;
+      } else {
+        // If it doesn't match our strict format, try passing it anyway to let the server reject it,
+        // or reject immediately if we want client-side strictness.
+        // The server resolves by publicCode exactly.
+        // Let's just uppercase and pass it so the server can handle "RS-..." properly.
+        codeToResolve = publicCode.trim().toUpperCase();
+      }
+
+      setScanState({ phase: "resolving", code: codeToResolve });
       startTransition(async () => {
-        const result = await resolveClassCheckIn(orgSlug, publicCode);
+        const result = await resolveClassCheckIn(orgSlug, codeToResolve);
         if (!result.ok) {
           setScanState({
             phase: "error",
@@ -496,6 +512,19 @@ export function ScanClient({ orgSlug }: ScanClientProps) {
   const handleRetry = useCallback(() => {
     setScanState({ phase: "scanning" });
   }, []);
+
+  const handleManualEntry = useCallback(() => {
+    setScanState({ phase: "manual" });
+  }, []);
+
+  const handleManualSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const code = formData.get("code") as string;
+    if (code) {
+      handleDetected(code);
+    }
+  }, [handleDetected]);
 
   const isCameraActive =
     scanState.phase === "scanning" || scanState.phase === "resolving";
@@ -544,10 +573,66 @@ export function ScanClient({ orgSlug }: ScanClientProps) {
               )}
 
               {scanState.phase === "scanning" && (
-                <p className="text-[13px] text-text-accent text-center leading-relaxed">
-                  Scan the QR code posted in your classroom to check in.
-                </p>
+                <div className="flex flex-col gap-3">
+                  <p className="text-[13px] text-text-accent text-center leading-relaxed">
+                    Scan the QR code posted in your classroom to check in.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleManualEntry}
+                    className="text-[14px] font-medium text-blue hover:text-blue/80 transition-colors self-center py-2"
+                  >
+                    Having trouble scanning? Enter the code manually
+                  </button>
+                </div>
               )}
+            </motion.div>
+          )}
+
+          {/* ── Manual phase ── */}
+          {scanState.phase === "manual" && (
+            <motion.div
+              key="manual"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-5 pt-4"
+            >
+              <div className="w-14 h-14 rounded-full bg-blue/10 flex items-center justify-center">
+                <QrCode size={26} className="text-blue" />
+              </div>
+              <div className="text-center">
+                <p className="text-[18px] font-semibold">Enter class code</p>
+                <p className="text-[14px] text-text-accent mt-2 leading-relaxed">
+                  Enter the code displayed with the class QR.
+                </p>
+              </div>
+
+              <form onSubmit={handleManualSubmit} className="w-full space-y-4">
+                <input
+                  type="text"
+                  name="code"
+                  placeholder="RS-XXXXXXXX"
+                  className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white text-[16px] text-center font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue/50"
+                  required
+                  autoComplete="off"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="w-full flex items-center justify-center py-3.5 rounded-xl bg-blue text-white text-[16px] font-semibold hover:bg-blue/90 active:scale-[0.98] transition-all"
+                >
+                  Continue
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="text-[14px] text-text-accent hover:text-foreground transition-colors py-2"
+              >
+                Back to scanner
+              </button>
             </motion.div>
           )}
 
@@ -613,6 +698,13 @@ export function ScanClient({ orgSlug }: ScanClientProps) {
                 className="text-[14px] text-text-accent hover:text-foreground transition-colors"
               >
                 Back to Today
+              </button>
+              <button
+                type="button"
+                onClick={handleManualEntry}
+                className="text-[14px] text-blue hover:text-blue/80 transition-colors mt-2"
+              >
+                Enter code manually
               </button>
             </motion.div>
           )}

@@ -1,0 +1,591 @@
+# FIX + HARDEN CLASS QR TEACHER CHECK-IN
+
+## Context
+
+Roll SYNC already has a Class QR teacher check-in system implemented.
+
+The intended flow is:
+
+Admin
+→ creates Class
+→ Class receives a stable publicCode
+→ QR is generated from that publicCode
+→ Admin can view/download the QR
+→ Teacher opens "Scan Class QR"
+→ camera scanner reads the QR
+→ system resolves the Class
+→ server validates the authenticated teacher against the organization, class, timetable, assignment, date/time, and exceptions
+→ teacher sees a check-in preview
+→ teacher explicitly confirms
+→ Attendance Session is created/retrieved idempotently.
+
+The scanning page itself currently loads and works visually, but the camera is NOT successfully detecting/scanning the generated Roll SYNC QR code.
+
+There is also currently no proper fallback for manually entering the code printed/displayed with the QR.
+
+DO NOT redesign the feature or build a new QR architecture.
+
+Your job is to understand the existing implementation, diagnose the actual scanning failure, fix it, and add the fallback.
+
+---
+
+# 1. READ THE EXISTING IMPLEMENTATION FIRST
+
+Before changing anything, inspect the existing implementation end-to-end.
+
+At minimum inspect:
+
+- Class/publicCode schema
+- class creation actions
+- QR generation/display/download
+- QR payload
+- teacher Today page
+- teacher attendance scan page
+- ScanClient
+- QR decoding library/configuration
+- `resolveClassCheckIn`
+- `confirmClassCheckIn`
+- `teacherSignIn`
+- timetable lookup
+- attendance session creation
+- relevant environment/configuration
+- package.json dependencies
+- any existing migrations related to Class.publicCode
+
+Do NOT assume the previous implementation is correct.
+
+Trace the actual data flow:
+
+Class.publicCode
+→ QR payload
+→ camera frame
+→ decoder
+→ decoded value
+→ publicCode extraction
+→ resolveClassCheckIn()
+→ preview
+→ confirmClassCheckIn()
+→ AttendanceSession
+
+Understand exactly what is currently happening before modifying it.
+
+---
+
+# 2. DIAGNOSE WHY THE QR IS NOT SCANNING
+
+The primary bug is:
+
+> The scanning page works, the camera works, but the generated Roll SYNC QR is not being detected.
+
+Find the actual cause.
+
+Check specifically:
+
+### QR payload
+
+Determine exactly what the generated QR contains.
+
+The intended payload should identify the Class through its stable publicCode.
+
+For example:
+
+`https://rollsync.app/c/RS-XXXXXXXX`
+
+or whatever canonical format the existing implementation intentionally uses.
+
+Do NOT change the payload format unless there is a concrete reason.
+
+The QR must NOT contain:
+
+- internal organization CUID
+- internal class CUID
+- teacher ID
+- timetable ID
+- attendance session ID
+- authorization data
+- attendance state
+
+The QR identifies the class only.
+
+---
+
+### Decoder
+
+Inspect the current QR decoder implementation.
+
+If the project currently uses `jsqr`, determine whether the issue is caused by:
+
+- incorrect canvas dimensions
+- incorrect video dimensions
+- incorrect frame/image data
+- incorrect canvas scaling
+- incorrect camera facing mode
+- camera stream not actually producing usable frames
+- decoding too early
+- continuously decoding an empty frame
+- incorrect MIME/image handling
+- browser compatibility
+- incorrect QR library usage
+- CSS/video sizing mismatch
+- hidden/zero-sized video element
+- devicePixelRatio issues
+- scanner cleanup
+- permission/state handling
+- decoding the wrong video/canvas dimensions
+
+Do not randomly replace libraries first.
+
+Fix the actual pipeline if possible.
+
+---
+
+# 3. MAKE CAMERA SCANNING RELIABLE
+
+The scanner should work with the generated Roll SYNC QR from:
+
+- the admin's QR preview
+- the downloaded PNG
+- a printed QR
+- another screen/device
+
+Use a normal browser camera.
+
+Requirements:
+
+- request camera permission correctly
+- prefer the rear/environment camera on mobile where supported
+- handle browsers that do not support `facingMode`
+- wait until the video has usable dimensions before decoding
+- decode actual video frames
+- use the correct canvas dimensions
+- prevent duplicate detections
+- stop scanning once a valid Roll SYNC QR is detected
+- stop the MediaStream when leaving/unmounting
+- handle permission denial cleanly
+- handle camera unavailable errors
+- handle unsupported browsers cleanly
+- avoid runaway animation loops after successful detection
+- respect reduced motion where applicable
+
+Do not add unnecessary dependencies.
+
+If `jsqr` is already installed and appropriate, keep it.
+
+Only replace it if the existing implementation genuinely cannot reliably support the required browser/device behavior.
+
+---
+
+# 4. IMPORTANT: SUPPORT THE ACTUAL ROLL SYNC QR FORMAT
+
+The scanner should not simply expect the decoded text to equal:
+
+`RS-XXXXXXXX`
+
+The QR may contain the canonical URL:
+
+`https://rollsync.app/c/RS-XXXXXXXX`
+
+Therefore implement a small, robust QR payload parser.
+
+It should accept the actual Roll SYNC QR format generated by the application.
+
+For example:
+
+### Input
+
+`https://rollsync.app/c/RS-AB12CD34`
+
+### Extract
+
+`RS-AB12CD34`
+
+Then pass only the extracted publicCode into the existing server-side resolution flow.
+
+Also handle a raw publicCode if the application already supports it:
+
+`RS-AB12CD34`
+
+Do NOT accept arbitrary URLs as class identities.
+
+A QR from another website should produce:
+
+> "This isn't a valid Roll SYNC class QR."
+
+Do not make the client authoritative.
+
+---
+
+# 5. ADD MANUAL CODE FALLBACK
+
+This is required.
+
+The code displayed alongside the QR should be usable as a fallback.
+
+The scanner page should have a clear option such as:
+
+> **Enter class code instead**
+
+or
+
+> **Having trouble scanning? Enter the code manually**
+
+Example:
+
+`RS-AB12CD34`
+
+Requirements:
+
+- input field
+- sensible formatting/normalization
+- clear submit button
+- loading state
+- validation/error state
+- same server-side resolution as camera scanning
+- no duplicated backend validation
+
+The manual flow must NOT create a separate check-in implementation.
+
+It should simply do:
+
+```text
+Manual code
+    ↓
+publicCode
+    ↓
+resolveClassCheckIn()
+    ↓
+same preview
+    ↓
+same confirmation
+    ↓
+same Attendance Session
+````
+
+Camera and manual entry must converge on the same backend path.
+
+---
+
+# 6. DO NOT TRUST CLIENT-SIDE CHECK-IN DATA
+
+The client may provide the publicCode.
+
+It must NOT be allowed to choose:
+
+* teacher
+* Person
+* organization
+* subject
+* timetable entry
+* session
+* arrival status
+* timestamp
+* permissions
+
+The server must continue deriving/validating these.
+
+The existing server-side validation should remain the authority.
+
+Re-check that `resolveClassCheckIn()` verifies:
+
+1. authenticated Better Auth User
+2. organization membership
+3. linked Teacher Person
+4. Class belongs to the organization
+5. Class publicCode resolves correctly
+6. teacher is actually assigned to the Class/Subject
+7. current date/weekday
+8. current timetable occurrence
+9. current time against the schedule
+10. timetable exceptions
+11. cancelled/rescheduled/substitute cases
+12. attendance rules/status
+
+Do not weaken any of these checks to make scanning work.
+
+---
+
+# 7. KEEP THE PREVIEW → CONFIRM FLOW
+
+Scanning or manually entering a code should NOT immediately create an attendance session.
+
+Correct flow:
+
+```text
+SCAN / ENTER CODE
+        ↓
+Resolve Class
+        ↓
+Validate teacher + timetable
+        ↓
+Show preview
+        ↓
+Teacher explicitly clicks CHECK IN
+        ↓
+Revalidate server-side
+        ↓
+Create/retrieve Attendance Session
+        ↓
+Open session
+```
+
+Keep this architecture.
+
+---
+
+# 8. UX
+
+Do not redesign the existing scanner page.
+
+Make only the changes necessary to make it functional and understandable.
+
+The page should clearly communicate:
+
+### Camera state
+
+* Starting camera…
+* Point camera at the class QR
+* QR detected
+* Invalid QR
+* Camera permission denied
+* Camera unavailable
+
+### Fallback
+
+Place the manual code option somewhere obvious but secondary to scanning.
+
+For example:
+
+> Can't scan?
+> **Enter class code manually**
+
+The QR code's publicCode should already be visible in the admin QR panel, so teachers/admins know what the fallback code looks like.
+
+Keep the existing visual language.
+
+Add only subtle interaction feedback where appropriate.
+
+---
+
+# 9. ERROR HANDLING
+
+Make errors useful.
+
+Examples:
+
+### Invalid QR
+
+> This isn't a valid Roll SYNC class QR.
+
+### Valid class but wrong organization
+
+> This class isn't part of this organization.
+
+### No matching timetable
+
+> You don't have a scheduled class for this class at this time.
+
+### Cancelled class
+
+> This class has been cancelled.
+
+### Wrong teacher
+
+> You aren't assigned to this class.
+
+### Camera permission denied
+
+> Camera access is required to scan the QR. You can enter the class code manually instead.
+
+Do not expose internal IDs or database errors to the user.
+
+---
+
+# 10. DO NOT SEED OR MODIFY TIMETABLE DATA
+
+IMPORTANT:
+
+Do NOT:
+
+* seed timetable schedules
+* create demo teacher schedules
+* modify existing timetable records
+* create test organizations
+* create test users
+* alter production/demo data
+
+That will be handled separately after this feature is confirmed working.
+
+Your task is ONLY:
+
+1. understand the existing QR implementation
+2. fix camera scanning
+3. add manual publicCode fallback
+4. ensure both paths use the same backend validation
+5. verify the existing check-in flow.
+
+---
+
+# 11. TEST THE FEATURE
+
+After implementation, test the complete flow.
+
+## A. Admin
+
+* Create/open an existing class.
+* Verify it has a stable publicCode.
+* Open QR panel.
+* Verify QR is visible.
+* Verify displayed code matches the QR payload.
+* Download QR PNG.
+* Verify downloaded QR contains the same class identity.
+
+## B. Camera
+
+Using a real browser/device:
+
+* open teacher Scan Class QR
+* grant camera permission
+* point camera at the generated QR
+* verify it detects the QR
+* verify detection happens without needing perfect positioning
+* verify scanner stops after detection
+* verify correct class preview appears.
+
+## C. Manual fallback
+
+Enter:
+
+`RS-XXXXXXXX`
+
+Verify it reaches the exact same preview.
+
+## D. Invalid code
+
+Enter a fake code.
+
+Verify a clean error appears.
+
+## E. Invalid QR
+
+Scan a random QR code.
+
+Verify it is rejected.
+
+## F. Wrong class/teacher/timetable
+
+Verify the existing server authorization rules still reject invalid contexts.
+
+## G. Confirmation
+
+Click Check In.
+
+Verify:
+
+* Attendance Session is created
+* duplicate check-in does not create another session
+* user is routed to the existing session
+* existing attendance session behavior remains intact.
+
+---
+
+# 12. PRODUCTION QUALITY
+
+Do not introduce architecture changes.
+
+Do not add:
+
+* realtime
+* WebSockets
+* Socket.IO
+* NestJS
+* new backend
+* duplicate QR system
+* duplicate attendance flow
+* new authentication system
+* unnecessary dependencies
+
+Reuse:
+
+* Prisma 7.10.0
+* Better Auth 1.7.3
+* existing publicCode
+* existing timetable infrastructure
+* existing attendance actions
+* existing authorization
+* existing UI components
+* existing QR dependency if viable.
+
+---
+
+# 13. VALIDATION
+
+Run:
+
+```bash
+pnpm install
+pnpm lint
+pnpm run build
+```
+
+Fix any errors introduced by this work.
+
+Do not leave the project in a state where local installation requires interactive approval.
+
+---
+
+# 14. FINAL REPORT
+
+When finished, report:
+
+### Diagnosis
+
+* Why the QR was not scanning.
+
+### Fix
+
+* What was changed in the scanner.
+* What was changed in QR payload parsing.
+* What was changed in manual fallback.
+
+### Security
+
+* Confirm camera and manual paths converge on the same server validation.
+* Confirm no client-controlled teacher/timetable/session data was trusted.
+
+### Testing
+
+* Camera scanning result
+* Manual code result
+* Invalid QR result
+* Invalid code result
+* Check-in result
+* Duplicate-session behavior
+* `pnpm lint`
+* `pnpm run build`
+
+### Files changed
+
+List the files and briefly explain each.
+
+### Explicitly confirm
+
+> No timetable data was seeded or modified.
+
+```
+
+**One important thing:** I deliberately made the agent **diagnose before replacing `jsqr`**. We don't want another “let's install a different QR library” solution when the actual problem might just be the video → canvas → decoder pipeline.
+
+And the manual code fallback is absolutely worth adding. It isn't just a backup for a buggy scanner — **it's good product design**. A teacher shouldn't be completely blocked because their browser camera refuses to cooperate.
+
+Then, **once this passes**, we move to the next phase exactly as you said:
+
+**seed realistic timetable schedules for the existing teacher + org → run the actual end-to-end teacher check-in test.**
+
+Not before. 😭
+
+This gives us a very clean debugging order:
+
+**QR generation → QR detection → code parsing → timetable resolution → preview → confirmation → session creation.**
+
+If scanning breaks, we know exactly where to look.
+```
