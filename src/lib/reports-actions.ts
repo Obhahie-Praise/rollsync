@@ -85,7 +85,8 @@ export interface ScheduleReportRow {
   roomName: string | null;
   startTime: string;
   endTime: string;
-  daysOfWeek: string;
+  /** Single weekday: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat */
+  dayOfWeek: number;
   periodLabel: string | null;
   status: string;
   effectiveFrom: Date;
@@ -441,7 +442,7 @@ export async function fetchScheduleReport(
         roomName: e.room?.name ?? null,
         startTime: e.startTime,
         endTime: e.endTime,
-        daysOfWeek: e.daysOfWeek,
+        dayOfWeek: e.dayOfWeek,
         periodLabel: e.periodLabel,
         status: e.status,
         effectiveFrom: e.effectiveFrom,

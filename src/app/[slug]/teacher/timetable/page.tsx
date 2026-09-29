@@ -48,7 +48,7 @@ export default async function TeacherTimetablePage({ params }: PageProps) {
       id: true,
       startTime: true,
       endTime: true,
-      daysOfWeek: true,
+      dayOfWeek: true,
       periodLabel: true,
       class: { select: { name: true, code: true } },
       subject: { select: { name: true } },
@@ -90,10 +90,7 @@ export default async function TeacherTimetablePage({ params }: PageProps) {
           {DAYS.map(({ dow, label }) => {
             const dayEntries = entries
               .filter((e) =>
-                e.daysOfWeek
-                  .split(",")
-                  .map((d) => parseInt(d.trim(), 10))
-                  .includes(dow)
+                e.dayOfWeek === dow
               )
               .sort((a, b) => a.startTime.localeCompare(b.startTime));
 

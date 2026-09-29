@@ -125,6 +125,7 @@ export async function fetchTeacherOverview(
         organizationId: org.id,
         teacherPersonId: teacher.id,
         status: "ACTIVE",
+        dayOfWeek: todayDow,
         effectiveFrom: { lte: now },
         OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
       },
@@ -140,10 +141,8 @@ export async function fetchTeacherOverview(
       orderBy: { startTime: "asc" },
     });
 
-    // Filter to today's day, skip cancelled/substituted
+    // Filter to skip cancelled/substituted today (dayOfWeek already filtered in DB)
     const todayEntries = entries.filter((e) => {
-      const days = e.daysOfWeek.split(",").map((d) => parseInt(d.trim(), 10));
-      if (!days.includes(todayDow)) return false;
       if (e.exceptions.some((ex) => ex.exceptionType === "CANCELLED")) return false;
       if (e.exceptions.some((ex) => ex.exceptionType === "SUBSTITUTED" && ex.substitutePersonId !== teacher.id)) return false;
       return true;
@@ -332,6 +331,7 @@ export async function fetchAdminOverview(
         where: {
           organizationId: org.id,
           status: "ACTIVE",
+          dayOfWeek: todayDow,
           effectiveFrom: { lte: end },
           OR: [{ effectiveTo: null }, { effectiveTo: { gte: start } }],
         },
@@ -346,8 +346,6 @@ export async function fetchAdminOverview(
 
     // Compute expected sessions for today
     const expectedSessions = allActiveEntries.filter((e) => {
-      const days = e.daysOfWeek.split(",").map((d) => parseInt(d.trim(), 10));
-      if (!days.includes(todayDow)) return false;
       if (e.exceptions.some((ex) => ex.exceptionType === "CANCELLED")) return false;
       return true;
     }).length;

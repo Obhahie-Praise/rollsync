@@ -19,6 +19,7 @@ import {
   Clock,
   MapPin,
   BookOpen,
+  Trash2,
 } from "lucide-react";
 import {
   listTimetableEntries,
@@ -43,6 +44,7 @@ const DAY_NAMES_FULL = [
   "Saturday",
 ];
 
+// Mon–Fri available in creation form
 const DAY_OPTIONS = [1, 2, 3, 4, 5].map((d) => ({
   value: d,
   label: DAY_NAMES[d],
@@ -56,13 +58,6 @@ interface TeacherOption {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function parseDays(daysOfWeek: string): number[] {
-  return daysOfWeek
-    .split(",")
-    .map((d) => parseInt(d.trim(), 10))
-    .filter((d) => !isNaN(d));
-}
 
 function formatTime(t: string): string {
   const [h, m] = t.split(":");
@@ -106,17 +101,14 @@ function isEntryActiveOn(entry: TimetableEntryItem, date: Date): boolean {
   return true;
 }
 
+/** Return entries for a specific weekday on a specific date, sorted by startTime. */
 function entriesForDay(
   entries: TimetableEntryItem[],
   dayOfWeek: number,
   date: Date
 ): TimetableEntryItem[] {
   return entries
-    .filter(
-      (e) =>
-        parseDays(e.daysOfWeek).includes(dayOfWeek) &&
-        isEntryActiveOn(e, date)
-    )
+    .filter((e) => e.dayOfWeek === dayOfWeek && isEntryActiveOn(e, date))
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
@@ -194,7 +186,127 @@ function TimetableCell({
   );
 }
 
-// ─── Entry form inner (key-based remount for clean state) ─────────────────────
+// ─── Per-day schedule row (used inside creation form) ─────────────────────────
+
+interface DayScheduleRow {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  roomId: string;
+  periodLabel: string;
+}
+
+function DayScheduleEditor({
+  row,
+  rooms,
+  onChange,
+  onRemove,
+  fieldError: fieldErrorPrefix,
+}: {
+  row: DayScheduleRow;
+  rooms: RoomItem[];
+  onChange: (updated: DayScheduleRow) => void;
+  onRemove: () => void;
+  fieldError: string | null;
+}) {
+  const inputCls = (field: string) =>
+    [
+      "w-full px-3 py-2 rounded-xl border bg-input text-[14px] outline-none transition-colors",
+      fieldErrorPrefix === field
+        ? "border-red-400"
+        : "border-transparent focus:border-blue/50",
+    ].join(" ");
+
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white/70 p-4 space-y-3">
+      {/* Day label + remove */}
+      <div className="flex items-center justify-between">
+        <span className="text-[14px] font-semibold">
+          {DAY_NAMES_FULL[row.dayOfWeek]}
+        </span>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="p-1 rounded-lg hover:bg-red-50 text-text-accent hover:text-red-500 transition-colors"
+          aria-label={`Remove ${DAY_NAMES_FULL[row.dayOfWeek]}`}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      {/* Start / End time */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[12px] font-medium text-text-accent mb-1">
+            Start time <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="time"
+            value={row.startTime}
+            onChange={(e) => onChange({ ...row, startTime: e.target.value })}
+            required
+            className={inputCls("startTime")}
+          />
+        </div>
+        <div>
+          <label className="block text-[12px] font-medium text-text-accent mb-1">
+            End time <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="time"
+            value={row.endTime}
+            onChange={(e) => onChange({ ...row, endTime: e.target.value })}
+            required
+            className={inputCls("endTime")}
+          />
+        </div>
+      </div>
+
+      {/* Room */}
+      <div>
+        <label className="block text-[12px] font-medium text-text-accent mb-1">
+          Room <span className="text-text-accent/50 font-normal">(optional)</span>
+        </label>
+        <select
+          value={row.roomId}
+          onChange={(e) => onChange({ ...row, roomId: e.target.value })}
+          className={inputCls("roomId")}
+        >
+          <option value="">No room</option>
+          {rooms.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Period label */}
+      <div>
+        <label className="block text-[12px] font-medium text-text-accent mb-1">
+          Period <span className="text-text-accent/50 font-normal">(optional)</span>
+        </label>
+        <input
+          type="text"
+          value={row.periodLabel}
+          onChange={(e) => onChange({ ...row, periodLabel: e.target.value })}
+          placeholder="e.g. Period 1"
+          maxLength={50}
+          className={inputCls("periodLabel")}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Entry form inner ─────────────────────────────────────────────────────────
+//
+// CREATE mode: user picks Teacher / Class / Subject / effective dates, then
+//   adds one row per weekday they want.  Each row has its own time/room/period.
+//   On submit, one createTimetableEntry call is made per day row.
+//
+// EDIT mode: editing a single existing TimetableEntry (one specific day).
+//   Shows a simplified form with all fields for that entry.
 
 interface EntryFormInnerProps {
   editing: TimetableEntryItem | null;
@@ -204,7 +316,7 @@ interface EntryFormInnerProps {
   subjects: SubjectItem[];
   rooms: RoomItem[];
   onClose: () => void;
-  onSaved: (entry: TimetableEntryItem) => void;
+  onSaved: (entries: TimetableEntryItem[]) => void;
   onUpdated: () => void;
 }
 
@@ -219,17 +331,12 @@ function EntryFormInner({
   onSaved,
   onUpdated,
 }: EntryFormInnerProps) {
+  // ── Shared fields ────────────────────────────────────────────────────────
   const [teacherPersonId, setTeacherPersonId] = useState(
     editing?.teacherPersonId ?? ""
   );
   const [classId, setClassId] = useState(editing?.classId ?? "");
   const [subjectId, setSubjectId] = useState(editing?.subjectId ?? "");
-  const [roomId, setRoomId] = useState(editing?.roomId ?? "");
-  const [startTime, setStartTime] = useState(editing?.startTime ?? "08:00");
-  const [endTime, setEndTime] = useState(editing?.endTime ?? "08:40");
-  const [selectedDays, setSelectedDays] = useState<number[]>(
-    editing ? parseDays(editing.daysOfWeek) : [1, 2, 3, 4, 5]
-  );
   const [effectiveFrom, setEffectiveFrom] = useState(
     editing
       ? new Date(editing.effectiveFrom).toISOString().split("T")[0]
@@ -240,65 +347,54 @@ function EntryFormInner({
       ? new Date(editing.effectiveTo).toISOString().split("T")[0]
       : ""
   );
-  const [periodLabel, setPeriodLabel] = useState(editing?.periodLabel ?? "");
+
+  // ── Edit mode: single-row fields ─────────────────────────────────────────
+  const [editStartTime, setEditStartTime] = useState(editing?.startTime ?? "08:00");
+  const [editEndTime, setEditEndTime] = useState(editing?.endTime ?? "08:40");
+  const [editRoomId, setEditRoomId] = useState(editing?.roomId ?? "");
+  const [editPeriodLabel, setEditPeriodLabel] = useState(editing?.periodLabel ?? "");
+
+  // ── Create mode: per-day rows ─────────────────────────────────────────────
+  //
+  // dayRows holds one independent schedule per selected weekday.
+  // We start with no rows; user clicks "Add day" to add each day.
+  const [dayRows, setDayRows] = useState<DayScheduleRow[]>([]);
+
+  // Quick-apply: shared start/end for the "apply to all" convenience feature
+  const [applyStart, setApplyStart] = useState("08:00");
+  const [applyEnd, setApplyEnd] = useState("08:40");
+
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const toggleDay = (day: number) => {
-    setSelectedDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+  const isEditing = editing !== null;
+
+  // Days already in dayRows (prevent duplicate weekday rows in create mode)
+  const usedDays = new Set(dayRows.map((r) => r.dayOfWeek));
+
+  const addDayRow = (dayOfWeek: number) => {
+    if (usedDays.has(dayOfWeek)) return;
+    setDayRows((prev) => [
+      ...prev,
+      { dayOfWeek, startTime: applyStart, endTime: applyEnd, roomId: "", periodLabel: "" },
+    ]);
+  };
+
+  const removeDayRow = (dayOfWeek: number) => {
+    setDayRows((prev) => prev.filter((r) => r.dayOfWeek !== dayOfWeek));
+  };
+
+  const updateDayRow = (dayOfWeek: number, updated: DayScheduleRow) => {
+    setDayRows((prev) =>
+      prev.map((r) => (r.dayOfWeek === dayOfWeek ? updated : r))
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setFieldError(null);
-
-    if (!selectedDays.length) {
-      setError("Select at least one day.");
-      return;
-    }
-
-    const payload = {
-      slug,
-      teacherPersonId,
-      classId,
-      subjectId,
-      roomId: roomId || null,
-      startTime,
-      endTime,
-      daysOfWeek: [...selectedDays].sort().join(","),
-      effectiveFrom: new Date(effectiveFrom),
-      effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
-      periodLabel: periodLabel.trim() || null,
-    };
-
-    startTransition(async () => {
-      if (editing) {
-        const result = await updateTimetableEntry({
-          ...payload,
-          entryId: editing.id,
-        });
-        if (!result.ok) {
-          setError(result.error);
-          setFieldError(result.field ?? null);
-          return;
-        }
-        onUpdated();
-        onClose();
-      } else {
-        const result = await createTimetableEntry(payload);
-        if (!result.ok) {
-          setError(result.error);
-          setFieldError(result.field ?? null);
-          return;
-        }
-        onSaved(result.entry);
-        onClose();
-      }
-    });
+  const applyToAll = () => {
+    setDayRows((prev) =>
+      prev.map((r) => ({ ...r, startTime: applyStart, endTime: applyEnd }))
+    );
   };
 
   const fieldCls = (field: string) =>
@@ -308,6 +404,77 @@ function EntryFormInner({
         ? "border-red-400"
         : "border-transparent focus:border-blue/50",
     ].join(" ");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setFieldError(null);
+
+    startTransition(async () => {
+      if (isEditing) {
+        // ── Edit mode: update the single entry ────────────────────────────
+        const result = await updateTimetableEntry({
+          slug,
+          entryId: editing.id,
+          teacherPersonId,
+          classId,
+          subjectId,
+          roomId: editRoomId || null,
+          startTime: editStartTime,
+          endTime: editEndTime,
+          dayOfWeek: editing.dayOfWeek,
+          effectiveFrom: new Date(effectiveFrom),
+          effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
+          periodLabel: editPeriodLabel.trim() || null,
+        });
+        if (!result.ok) {
+          setError(result.error);
+          setFieldError(result.field ?? null);
+          return;
+        }
+        onUpdated();
+        onClose();
+      } else {
+        // ── Create mode: one createTimetableEntry call per day row ─────────
+        if (dayRows.length === 0) {
+          setError("Add at least one day.");
+          return;
+        }
+
+        const results = await Promise.all(
+          dayRows.map((row) =>
+            createTimetableEntry({
+              slug,
+              teacherPersonId,
+              classId,
+              subjectId,
+              roomId: row.roomId || null,
+              startTime: row.startTime,
+              endTime: row.endTime,
+              dayOfWeek: row.dayOfWeek,
+              effectiveFrom: new Date(effectiveFrom),
+              effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
+              periodLabel: row.periodLabel.trim() || null,
+            })
+          )
+        );
+
+        const failed = results.find((r) => !r.ok);
+        if (failed && !failed.ok) {
+          setError(failed.error);
+          setFieldError(failed.field ?? null);
+          return;
+        }
+
+        const created = results
+          .filter((r): r is Extract<typeof r, { ok: true }> => r.ok)
+          .map((r) => r.entry);
+
+        onSaved(created);
+        onClose();
+      }
+    });
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -377,78 +544,6 @@ function EntryFormInner({
         </select>
       </div>
 
-      {/* Room */}
-      <div>
-        <label className="block text-[16px] font-medium text-text-accent mb-1.5">
-          Room{" "}
-          <span className="text-text-accent/60 font-normal">(optional)</span>
-        </label>
-        <select
-          value={roomId}
-          onChange={(e) => setRoomId(e.target.value)}
-          className={fieldCls("roomId")}
-        >
-          <option value="">No room</option>
-          {rooms.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Time */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-[16px] font-medium text-text-accent mb-1.5">
-            Start time <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            required
-            className={fieldCls("startTime")}
-          />
-        </div>
-        <div>
-          <label className="block text-[16px] font-medium text-text-accent mb-1.5">
-            End time <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="time"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            required
-            className={fieldCls("endTime")}
-          />
-        </div>
-      </div>
-
-      {/* Days of week */}
-      <div>
-        <label className="block text-[16px] font-medium text-text-accent mb-2">
-          Days of week <span className="text-red-500">*</span>
-        </label>
-        <div className="flex gap-2">
-          {DAY_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => toggleDay(value)}
-              className={[
-                "w-10 h-10 rounded-xl text-[13px] font-medium transition-colors",
-                selectedDays.includes(value)
-                  ? "bg-blue text-white"
-                  : "bg-input hover:bg-accent",
-              ].join(" ")}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Effective dates */}
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -477,21 +572,162 @@ function EntryFormInner({
         </div>
       </div>
 
-      {/* Period label */}
-      <div>
-        <label className="block text-[16px] font-medium text-text-accent mb-1.5">
-          Period label{" "}
-          <span className="text-text-accent/60 font-normal">(optional)</span>
-        </label>
-        <input
-          type="text"
-          value={periodLabel}
-          onChange={(e) => setPeriodLabel(e.target.value)}
-          placeholder="e.g. Period 1"
-          maxLength={50}
-          className={fieldCls("periodLabel")}
-        />
-      </div>
+      {/* ── Edit mode: single-day fields ─────────────────────────────────── */}
+      {isEditing && (
+        <div className="rounded-2xl border border-neutral-200 bg-white/70 p-4 space-y-3">
+          <p className="text-[13px] font-semibold text-text-accent">
+            {DAY_NAMES_FULL[editing.dayOfWeek]}
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[12px] font-medium text-text-accent mb-1">
+                Start time <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="time"
+                value={editStartTime}
+                onChange={(e) => setEditStartTime(e.target.value)}
+                required
+                className="w-full px-3 py-2 rounded-xl border border-transparent bg-input text-[14px] outline-none focus:border-blue/50 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-text-accent mb-1">
+                End time <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="time"
+                value={editEndTime}
+                onChange={(e) => setEditEndTime(e.target.value)}
+                required
+                className="w-full px-3 py-2 rounded-xl border border-transparent bg-input text-[14px] outline-none focus:border-blue/50 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-medium text-text-accent mb-1">
+              Room <span className="text-text-accent/50 font-normal">(optional)</span>
+            </label>
+            <select
+              value={editRoomId}
+              onChange={(e) => setEditRoomId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-transparent bg-input text-[14px] outline-none focus:border-blue/50 transition-colors"
+            >
+              <option value="">No room</option>
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-medium text-text-accent mb-1">
+              Period <span className="text-text-accent/50 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={editPeriodLabel}
+              onChange={(e) => setEditPeriodLabel(e.target.value)}
+              placeholder="e.g. Period 1"
+              maxLength={50}
+              className="w-full px-3 py-2 rounded-xl border border-transparent bg-input text-[14px] outline-none focus:border-blue/50 transition-colors"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Create mode: per-day schedule rows ───────────────────────────── */}
+      {!isEditing && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-[16px] font-medium text-text-accent">
+              Schedule <span className="text-red-500">*</span>
+            </label>
+            <span className="text-[12px] text-text-accent/60">
+              Each day is independent
+            </span>
+          </div>
+
+          {/* Convenience: quick-apply shared time to all rows */}
+          <div className="flex items-end gap-2 p-3 rounded-xl bg-input">
+            <div className="flex-1">
+              <p className="text-[11px] font-medium text-text-accent mb-1">
+                Quick apply to all days
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="time"
+                  value={applyStart}
+                  onChange={(e) => setApplyStart(e.target.value)}
+                  className="flex-1 px-2 py-1.5 rounded-lg border border-transparent bg-background text-[13px] outline-none focus:border-blue/50 transition-colors"
+                  aria-label="Quick-apply start time"
+                />
+                <span className="self-center text-text-accent text-[12px]">–</span>
+                <input
+                  type="time"
+                  value={applyEnd}
+                  onChange={(e) => setApplyEnd(e.target.value)}
+                  className="flex-1 px-2 py-1.5 rounded-lg border border-transparent bg-background text-[13px] outline-none focus:border-blue/50 transition-colors"
+                  aria-label="Quick-apply end time"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={applyToAll}
+              disabled={dayRows.length === 0}
+              className="px-3 py-1.5 rounded-lg bg-blue/10 text-blue text-[12px] font-medium hover:bg-blue/20 transition-colors disabled:opacity-40 shrink-0"
+            >
+              Apply to all
+            </button>
+          </div>
+
+          {/* Day rows */}
+          {dayRows.length === 0 && (
+            <p className="text-[13px] text-text-accent/60 text-center py-3">
+              Add days below to build the schedule.
+            </p>
+          )}
+
+          {dayRows
+            .slice()
+            .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+            .map((row) => (
+              <DayScheduleEditor
+                key={row.dayOfWeek}
+                row={row}
+                rooms={rooms}
+                onChange={(updated) => updateDayRow(row.dayOfWeek, updated)}
+                onRemove={() => removeDayRow(row.dayOfWeek)}
+                fieldError={fieldError}
+              />
+            ))}
+
+          {/* Add day buttons */}
+          <div className="flex flex-wrap gap-2">
+            {DAY_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => addDayRow(value)}
+                disabled={usedDays.has(value)}
+                className={[
+                  "px-3 py-1.5 rounded-xl text-[13px] font-medium transition-colors",
+                  usedDays.has(value)
+                    ? "bg-blue text-white cursor-default opacity-70"
+                    : "bg-input hover:bg-accent",
+                ].join(" ")}
+              >
+                {usedDays.has(value) ? `✓ ${label}` : `+ ${label}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 text-red-500 text-[13px]">
@@ -515,14 +751,16 @@ function EntryFormInner({
             !teacherPersonId ||
             !classId ||
             !subjectId ||
-            !startTime ||
-            !endTime ||
-            !selectedDays.length
+            (!isEditing && dayRows.length === 0)
           }
           className="flex-1 px-4 py-2.5 rounded-xl bg-blue text-white text-[15px] font-medium hover:bg-blue/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
         >
           {isPending && <Loader2 size={15} className="animate-spin" />}
-          {editing ? "Save changes" : "Add entry"}
+          {isEditing
+            ? "Save changes"
+            : dayRows.length > 1
+            ? `Add ${dayRows.length} entries`
+            : "Add entry"}
         </button>
       </div>
     </form>
@@ -540,7 +778,7 @@ interface EntryFormModalProps {
   subjects: SubjectItem[];
   rooms: RoomItem[];
   onClose: () => void;
-  onSaved: (entry: TimetableEntryItem) => void;
+  onSaved: (entries: TimetableEntryItem[]) => void;
   onUpdated: () => void;
 }
 
@@ -577,7 +815,9 @@ function EntryFormModal({
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-[24px] font-medium">
-                {editing ? "Edit entry" : "Add timetable entry"}
+                {editing
+                  ? `Edit — ${DAY_NAMES_FULL[editing.dayOfWeek]}`
+                  : "Add timetable entries"}
               </h2>
               <button
                 onClick={onClose}
@@ -955,10 +1195,6 @@ function EntryListRow({
   isToggling: boolean;
   canManage: boolean;
 }) {
-  const days = parseDays(entry.daysOfWeek)
-    .map((d) => DAY_NAMES[d])
-    .join(", ");
-
   return (
     <div className="flex items-center justify-between px-4 py-3.5 bg-background border border-neutral-100 rounded-2xl hover:border-neutral-200 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -967,6 +1203,9 @@ function EntryListRow({
             <span className="text-[15px] font-medium">{entry.subjectName}</span>
             <span className="text-[12px] text-text-accent bg-accent px-2 py-0.5 rounded-full">
               {entry.classCode ?? entry.className}
+            </span>
+            <span className="text-[12px] text-blue bg-blue/10 px-2 py-0.5 rounded-full">
+              {DAY_NAMES_FULL[entry.dayOfWeek]}
             </span>
             {entry.status === "INACTIVE" && (
               <span className="text-[12px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded-full">
@@ -982,10 +1221,6 @@ function EntryListRow({
             <span className="flex items-center gap-1">
               <Clock size={11} />
               {formatTime(entry.startTime)}–{formatTime(entry.endTime)}
-            </span>
-            <span className="flex items-center gap-1">
-              <CalendarDays size={11} />
-              {days}
             </span>
             {entry.roomName && (
               <span className="flex items-center gap-1">
@@ -1333,7 +1568,9 @@ export function TimetableClient({
           setModalOpen(false);
           setEditing(null);
         }}
-        onSaved={(entry) => setEntries((prev) => [entry, ...prev])}
+        onSaved={(newEntries) =>
+          setEntries((prev) => [...newEntries, ...prev])
+        }
         onUpdated={refreshEntries}
       />
     </div>

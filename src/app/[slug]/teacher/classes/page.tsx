@@ -52,7 +52,7 @@ export default async function TeacherClassesPage({ params }: PageProps) {
       id: true,
       startTime: true,
       endTime: true,
-      daysOfWeek: true,
+      dayOfWeek: true,
       class: {
         select: {
           id: true,
@@ -99,10 +99,7 @@ export default async function TeacherClassesPage({ params }: PageProps) {
       ) : (
         <div className="space-y-3">
           {classes.map((e) => {
-            const days = e.daysOfWeek
-              .split(',')
-              .map((d) => DAY_NAMES[parseInt(d.trim(), 10)] ?? '')
-              .join(' · ');
+            const days = DAY_NAMES[e.dayOfWeek] ?? '';
             return (
               <div
                 key={e.class.id}

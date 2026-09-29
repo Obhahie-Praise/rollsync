@@ -368,12 +368,15 @@ model Room {
   @@map("room")
 }
 
-// TimetableEntry: describes a RECURRING class session.
-// Source of truth: Teacher + Class + Subject + Time + Days.
-// Period labels (e.g. "Period 1") are optional metadata.
+// TimetableEntry: describes a RECURRING class session on a SINGLE weekday.
+// Source of truth: Teacher + Class + Subject + DayOfWeek + Time.
+// One row = one specific weekday, so Monday and Wednesday of the same
+// teaching assignment are two independent rows with independent times/rooms.
 //
-// Days of week stored as comma-separated integers (0=Sun, 1=Mon ... 6=Sat)
-// to keep the schema simple and avoid array types.
+// dayOfWeek uses ISO-compatible integers: 0=Sun, 1=Mon, 2=Tue, 3=Wed,
+// 4=Thu, 5=Fri, 6=Sat  (matches JavaScript's Date.getDay()).
+//
+// Period labels (e.g. "Period 1") are optional metadata per row.
 
 enum TimetableStatus {
   ACTIVE
@@ -391,8 +394,8 @@ model TimetableEntry {
   // Time as "HH:MM" 24-hour strings for simplicity and portability
   startTime      String          // e.g. "08:00"
   endTime        String          // e.g. "08:40"
-  // Comma-separated ISO day numbers: "1,2,3,4,5" = Mon-Fri
-  daysOfWeek     String
+  // Single weekday this entry recurs on: 0=Sun, 1=Mon … 6=Sat
+  dayOfWeek      Int
   // Effective date range for this recurring schedule
   effectiveFrom  DateTime
   effectiveTo    DateTime?
@@ -414,6 +417,7 @@ model TimetableEntry {
   @@index([teacherPersonId])
   @@index([classId])
   @@index([subjectId])
+  @@index([dayOfWeek])
   @@map("timetable_entry")
 }
 

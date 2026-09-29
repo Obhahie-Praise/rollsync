@@ -93,7 +93,8 @@ export interface TimetableEntryItem {
   roomName: string | null;
   startTime: string;
   endTime: string;
-  daysOfWeek: string;
+  /** Single weekday: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat */
+  dayOfWeek: number;
   effectiveFrom: Date;
   effectiveTo: Date | null;
   periodLabel: string | null;
@@ -980,7 +981,7 @@ export async function listTimetableEntries(
         roomId: true,
         startTime: true,
         endTime: true,
-        daysOfWeek: true,
+        dayOfWeek: true,
         effectiveFrom: true,
         effectiveTo: true,
         periodLabel: true,
@@ -1009,7 +1010,7 @@ export async function listTimetableEntries(
         roomName: e.room?.name ?? null,
         startTime: e.startTime,
         endTime: e.endTime,
-        daysOfWeek: e.daysOfWeek,
+        dayOfWeek: e.dayOfWeek,
         effectiveFrom: e.effectiveFrom,
         effectiveTo: e.effectiveTo,
         periodLabel: e.periodLabel,
@@ -1034,7 +1035,8 @@ export interface CreateTimetableEntryInput {
   roomId?: string | null;
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
-  daysOfWeek: string; // "1,2,3,4,5"
+  /** Single weekday: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat */
+  dayOfWeek: number;
   effectiveFrom: Date;
   effectiveTo?: Date | null;
   periodLabel?: string | null;
@@ -1068,8 +1070,8 @@ export async function createTimetableEntry(
       return { ok: false, error: "End time must be in HH:MM format.", field: "endTime" };
     if (input.startTime >= input.endTime)
       return { ok: false, error: "Start time must be before end time.", field: "startTime" };
-    if (!input.daysOfWeek?.trim())
-      return { ok: false, error: "At least one day of the week is required.", field: "daysOfWeek" };
+    if (input.dayOfWeek === undefined || input.dayOfWeek === null || !Number.isInteger(input.dayOfWeek) || input.dayOfWeek < 0 || input.dayOfWeek > 6)
+      return { ok: false, error: "A valid day of the week is required.", field: "dayOfWeek" };
     if (!input.effectiveFrom)
       return { ok: false, error: "Effective from date is required.", field: "effectiveFrom" };
 
@@ -1109,7 +1111,7 @@ export async function createTimetableEntry(
         roomId: input.roomId || null,
         startTime: input.startTime,
         endTime: input.endTime,
-        daysOfWeek: input.daysOfWeek.trim(),
+        dayOfWeek: input.dayOfWeek,
         effectiveFrom: input.effectiveFrom,
         effectiveTo: input.effectiveTo ?? null,
         periodLabel: input.periodLabel?.trim() || null,
@@ -1124,7 +1126,7 @@ export async function createTimetableEntry(
         roomId: true,
         startTime: true,
         endTime: true,
-        daysOfWeek: true,
+        dayOfWeek: true,
         effectiveFrom: true,
         effectiveTo: true,
         periodLabel: true,
@@ -1149,7 +1151,7 @@ export async function createTimetableEntry(
         roomName: room?.name ?? null,
         startTime: created.startTime,
         endTime: created.endTime,
-        daysOfWeek: created.daysOfWeek,
+        dayOfWeek: created.dayOfWeek,
         effectiveFrom: created.effectiveFrom,
         effectiveTo: created.effectiveTo,
         periodLabel: created.periodLabel,
@@ -1187,8 +1189,8 @@ export async function updateTimetableEntry(
       return { ok: false, error: "End time must be in HH:MM format.", field: "endTime" };
     if (input.startTime >= input.endTime)
       return { ok: false, error: "Start time must be before end time.", field: "startTime" };
-    if (!input.daysOfWeek?.trim())
-      return { ok: false, error: "At least one day is required.", field: "daysOfWeek" };
+    if (input.dayOfWeek === undefined || input.dayOfWeek === null || !Number.isInteger(input.dayOfWeek) || input.dayOfWeek < 0 || input.dayOfWeek > 6)
+      return { ok: false, error: "A valid day of the week is required.", field: "dayOfWeek" };
 
     const existing = await prisma.timetableEntry.findFirst({
       where: { id: input.entryId, organizationId: org.id },
@@ -1232,7 +1234,7 @@ export async function updateTimetableEntry(
         roomId: input.roomId || null,
         startTime: input.startTime,
         endTime: input.endTime,
-        daysOfWeek: input.daysOfWeek.trim(),
+        dayOfWeek: input.dayOfWeek,
         effectiveFrom: input.effectiveFrom,
         effectiveTo: input.effectiveTo ?? null,
         periodLabel: input.periodLabel?.trim() || null,

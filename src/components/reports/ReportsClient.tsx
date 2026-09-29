@@ -99,11 +99,8 @@ function formatDate(d: Date | null): string {
   }).format(new Date(d));
 }
 
-function formatDays(daysOfWeek: string): string {
-  return daysOfWeek
-    .split(",")
-    .map((d) => DAY_NAMES[d.trim()] ?? d)
-    .join(", ");
+function formatDay(dayOfWeek: number): string {
+  return DAY_NAMES[dayOfWeek.toString()] ?? String(dayOfWeek);
 }
 
 // ─── CSV export helper ────────────────────────────────────────────────────────
@@ -511,7 +508,7 @@ export function ReportsClient({
         e.subjectName,
         e.teacherName,
         e.roomName ?? "",
-        formatDays(e.daysOfWeek),
+        formatDay(e.dayOfWeek),
         e.startTime,
         e.endTime,
         e.periodLabel ?? "",
@@ -1013,7 +1010,7 @@ export function ReportsClient({
                           {e.teacherName}
                         </td>
                         <td className="px-4 py-3 text-text-accent">
-                          {formatDays(e.daysOfWeek)}
+                          {formatDay(e.dayOfWeek)}
                         </td>
                         <td className="px-4 py-3 font-mono text-[12px] text-text-accent">
                           {e.startTime}–{e.endTime}

@@ -173,6 +173,7 @@ export async function fetchTodayClasses(
         organizationId: org.id,
         teacherPersonId: teacher.id,
         status: "ACTIVE",
+        dayOfWeek: todayDow,
         effectiveFrom: { lte: now },
         OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
       },
@@ -193,10 +194,8 @@ export async function fetchTodayClasses(
       orderBy: { startTime: "asc" },
     });
 
-    // Filter to entries that include today's day-of-week
+    // Filter entries not cancelled/substituted today (dayOfWeek already filtered in DB)
     const todayEntries = entries.filter((e) => {
-      const days = e.daysOfWeek.split(",").map((d) => parseInt(d.trim(), 10));
-      if (!days.includes(todayDow)) return false;
       // Skip if cancelled today
       const cancelled = e.exceptions.some(
         (ex) => ex.exceptionType === "CANCELLED"
@@ -381,6 +380,7 @@ export async function teacherSignIn(
         organizationId: org.id,
         teacherPersonId: teacher.id,
         classId: cls.id,
+        dayOfWeek: todayDow,
         status: "ACTIVE",
         effectiveFrom: { lte: now },
         OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
@@ -399,10 +399,8 @@ export async function teacherSignIn(
       },
     });
 
-    // Filter to today's day and not cancelled
+    // Filter entries not cancelled today (dayOfWeek already filtered in DB)
     const validEntries = entries.filter((e) => {
-      const days = e.daysOfWeek.split(",").map((d) => parseInt(d.trim(), 10));
-      if (!days.includes(todayDow)) return false;
       if (e.exceptions.some((ex) => ex.exceptionType === "CANCELLED"))
         return false;
       return true;
@@ -824,6 +822,7 @@ export async function fetchAdminSessions(
       where: {
         organizationId: org.id,
         status: "ACTIVE",
+        dayOfWeek: targetDow,
         effectiveFrom: { lte: rangeEnd },
         OR: [{ effectiveTo: null }, { effectiveTo: { gte: rangeStart } }],
       },
@@ -836,8 +835,8 @@ export async function fetchAdminSessions(
     });
 
     const expectedEntries = allEntries.filter((e) => {
-      const days = e.daysOfWeek.split(",").map((d) => parseInt(d.trim(), 10));
-      if (!days.includes(targetDow)) return false;
+      // dayOfWeek already filtered in DB query — skip in-memory day check
+      // (targetDow filter applied via dayOfWeek: targetDow in findMany)
       if (e.exceptions.some((ex) => ex.exceptionType === "CANCELLED"))
         return false;
       return true;
@@ -1333,6 +1332,7 @@ export async function resolveClassCheckIn(
         teacherPersonId: teacher.id,
         classId: cls.id,
         status: "ACTIVE",
+        dayOfWeek: todayDow,
         effectiveFrom: { lte: now },
         OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
       },
@@ -1348,8 +1348,8 @@ export async function resolveClassCheckIn(
 
     // Filter to entries that include today's day of week
     const validEntries = entries.filter((e) => {
-      const days = e.daysOfWeek.split(",").map((d) => parseInt(d.trim(), 10));
-      if (!days.includes(todayDow)) return false;
+      // dayOfWeek already filtered in DB query
+      // (todayDow filter applied via dayOfWeek: todayDow in findMany)
       // Skip cancelled occurrences
       if (e.exceptions.some((ex) => ex.exceptionType === "CANCELLED")) return false;
       // Skip if substituted by someone other than this teacher
@@ -1525,10 +1525,10 @@ export async function confirmClassCheckIn(
     const { start: dayStart, end: dayEnd } = todayRange();
     const now = new Date();
 
-    const dayMatch = entry.daysOfWeek
-      .split(",")
-      .map((d) => parseInt(d.trim(), 10))
-      .includes(todayDow);
+    const dayMatch = entry.dayOfWeek === todayDow;
+
+
+
 
     if (!dayMatch) {
       return {
