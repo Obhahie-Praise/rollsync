@@ -63,7 +63,7 @@ type ClassState = "completed" | "active" | "upcoming" | "past_no_checkin";
 function getClassState(cls: OverviewClass): ClassState {
   if (cls.sessionStatus === "COMPLETED") return "completed";
   if (cls.sessionStatus === "ACTIVE") return "active";
-  if (isPast(cls.endTime) && !cls.sessionId) return "past_no_checkin";
+  if (cls.sessionStatus === "MISSED" || (isPast(cls.endTime) && !cls.sessionId)) return "past_no_checkin";
   return "upcoming";
 }
 

@@ -61,6 +61,8 @@ function getClassStatus(item: TodayClassItem): {
     return { label: "Completed", dot: "bg-green", color: "text-green" };
   if (sess.status === "CANCELLED")
     return { label: "Cancelled", dot: "bg-text-accent/30", color: "text-text-accent" };
+  if (sess.status === "MISSED")
+    return { label: "Missed", dot: "bg-red-400", color: "text-red-600" };
   return { label: "In progress", dot: "bg-blue", color: "text-blue" };
 }
 

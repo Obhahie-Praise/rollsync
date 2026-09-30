@@ -52,12 +52,14 @@ const STATUS_COLOURS: Record<string, string> = {
   ACTIVE: "text-blue bg-blue/10",
   COMPLETED: "text-green bg-green-accent",
   CANCELLED: "text-text-accent bg-accent",
+  MISSED: "text-red-700 bg-red-50",
 };
 
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Active",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
+  MISSED: "Missed",
 };
 
 // ─── Metric card ──────────────────────────────────────────────────────────────

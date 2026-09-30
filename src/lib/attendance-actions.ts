@@ -817,6 +817,11 @@ export async function fetchAdminSessions(
     const targetDate = rangeStart;
     const targetDow = targetDate.getDay();
 
+    // Auto-resolve any missed periods for this organization before fetching
+    if (!dateKey) { // only needed if querying today
+      await resolveAbsences(org.id);
+    }
+
     // Count expected sessions (timetable entries scheduled for that day)
     const allEntries = await prisma.timetableEntry.findMany({
       where: {
@@ -1664,3 +1669,86 @@ export async function confirmClassCheckIn(
   }
 }
 
+// ─── 11. Auto-resolve absences ────────────────────────────────────────────────
+//
+// Automatically marks ended timetable periods as MISSED if no session exists.
+// Can be called per-org (e.g. on dashboard load) or globally (e.g. by cron).
+
+export async function resolveAbsences(orgId?: string) {
+  try {
+    const now = new Date();
+    // Use the local day of week (assuming server time is roughly aligned with school time,
+    // or standardizing to UTC if the school runs on UTC. For now we use standard JS Date.)
+    const todayDow = now.getDay();
+    const todayStr = now.toISOString().slice(0, 10);
+    const sessionDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const { start: dayStart, end: dayEnd } = {
+      start: new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())),
+      end: new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999))
+    };
+
+    // Current time in HH:MM format for comparison
+    const currentHours = now.getHours().toString().padStart(2, '0');
+    const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+    const currentTime = `${currentHours}:${currentMinutes}`;
+
+    // Find all active timetable entries for today where the end time has already passed
+    const entries = await prisma.timetableEntry.findMany({
+      where: {
+        ...(orgId ? { organizationId: orgId } : {}),
+        status: "ACTIVE",
+        dayOfWeek: todayDow,
+        endTime: { lt: currentTime },
+        effectiveFrom: { lte: now },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      },
+      include: {
+        exceptions: {
+          where: { exceptionDate: { gte: dayStart, lte: dayEnd } },
+          select: { exceptionType: true },
+        },
+      }
+    });
+
+    let resolvedCount = 0;
+
+    for (const entry of entries) {
+      // Skip if cancelled
+      if (entry.exceptions.some(ex => ex.exceptionType === "CANCELLED")) {
+        continue;
+      }
+
+      // Check if a session already exists (any status)
+      const existing = await prisma.attendanceSession.findUnique({
+        where: {
+          timetableEntryId_sessionDate: {
+            timetableEntryId: entry.id,
+            sessionDate: sessionDate,
+          }
+        }
+      });
+
+      if (!existing) {
+        // Create a MISSED session
+        await prisma.attendanceSession.create({
+          data: {
+            organizationId: entry.organizationId,
+            timetableEntryId: entry.id,
+            teacherPersonId: entry.teacherPersonId,
+            classId: entry.classId,
+            subjectId: entry.subjectId,
+            sessionDate: sessionDate,
+            arrivalStatus: "VERY_LATE", // Semantically used for completely missed
+            status: "MISSED",
+          }
+        });
+        resolvedCount++;
+      }
+    }
+
+    return { ok: true, resolvedCount };
+  } catch (err) {
+    console.error("[resolveAbsences]", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to resolve absences" };
+  }
+}

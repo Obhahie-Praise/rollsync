@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
+import { resolveAbsences } from "@/lib/attendance-actions";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function todayRange(): { start: Date; end: Date } {
@@ -286,6 +286,9 @@ export async function fetchAdminOverview(
     const { start, end } = todayRange();
     const todayDow = todayDayOfWeek();
     const now = new Date();
+
+    // Auto-resolve any missed periods for this organization before fetching
+    await resolveAbsences(org.id);
 
     // Parallel fetch all data
     const [

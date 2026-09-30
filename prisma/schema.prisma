@@ -481,6 +481,7 @@ enum SessionStatus {
   ACTIVE      // in progress
   COMPLETED   // roll call saved/submitted
   CANCELLED   // session was cancelled after sign-in
+  MISSED      // period ended without teacher check-in (auto-resolved)
 }
 
 model AttendanceSession {
